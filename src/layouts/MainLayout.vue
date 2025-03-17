@@ -1,42 +1,30 @@
 <template>
-  <q-layout view="lHh Lpr lFf">
-    <q-header elevated>
-      <q-toolbar>
-        <q-btn
-          flat
-          dense
-          round
-          icon="menu"
-          aria-label="Menu"
-          @click="toggleLeftDrawer"
-        />
-
-        <q-toolbar-title>
-          Quasar App
-        </q-toolbar-title>
-
-        <div>Quasar v{{ $q.version }}</div>
-      </q-toolbar>
+  <q-layout view="lHr LpR lFr">
+    <q-header bordered class="transparent">
+      <q-bar
+        :class="`${$q.dark.mode ? 'bg-dark text-grey-1' : 'bg-white text-grey-10'} ${
+          $q.platform.is.electron ? 'q-pr-sm' : ''
+        }`"
+      >
+        <span>声工坊</span>
+        <q-btn dense flat color="primary" icon="check" @click="$q.dark.toggle()" />
+        <div class="q-space full-height q-electron-drag"></div>
+        <AppControl />
+      </q-bar>
     </q-header>
 
     <q-drawer
       v-model="leftDrawerOpen"
-      show-if-above
+      side="left"
       bordered
+      :width="64"
+      :class="$q.dark.mode ? 'bg-grey-10 text-grey-1' : 'bg-grey-1 text-grey-10'"
     >
-      <q-list>
-        <q-item-label
-          header
-        >
-          Essential Links
-        </q-item-label>
+      <AppNavigation />
+    </q-drawer>
 
-        <EssentialLink
-          v-for="link in linksList"
-          :key="link.title"
-          v-bind="link"
-        />
-      </q-list>
+    <q-drawer v-model="rightDrawerOpen" side="right" bordered>
+      <!-- drawer content -->
     </q-drawer>
 
     <q-page-container>
@@ -47,56 +35,14 @@
 
 <script setup>
 import { ref } from 'vue'
-import EssentialLink from 'components/EssentialLink.vue'
-
-const linksList = [
-  {
-    title: 'Docs',
-    caption: 'quasar.dev',
-    icon: 'school',
-    link: 'https://quasar.dev'
-  },
-  {
-    title: 'Github',
-    caption: 'github.com/quasarframework',
-    icon: 'code',
-    link: 'https://github.com/quasarframework'
-  },
-  {
-    title: 'Discord Chat Channel',
-    caption: 'chat.quasar.dev',
-    icon: 'chat',
-    link: 'https://chat.quasar.dev'
-  },
-  {
-    title: 'Forum',
-    caption: 'forum.quasar.dev',
-    icon: 'record_voice_over',
-    link: 'https://forum.quasar.dev'
-  },
-  {
-    title: 'Twitter',
-    caption: '@quasarframework',
-    icon: 'rss_feed',
-    link: 'https://twitter.quasar.dev'
-  },
-  {
-    title: 'Facebook',
-    caption: '@QuasarFramework',
-    icon: 'public',
-    link: 'https://facebook.quasar.dev'
-  },
-  {
-    title: 'Quasar Awesome',
-    caption: 'Community Quasar projects',
-    icon: 'favorite',
-    link: 'https://awesome.quasar.dev'
-  }
-]
-
-const leftDrawerOpen = ref(false)
-
-function toggleLeftDrawer () {
-  leftDrawerOpen.value = !leftDrawerOpen.value
-}
+import AppNavigation from '../components/AppNavigation.vue'
+import AppControl from '../components/AppControl.vue'
+const leftDrawerOpen = ref(true)
+const rightDrawerOpen = ref(false)
 </script>
+
+<style>
+.q-electron-drag {
+  cursor: move; /* 鼠标悬停时显示移动样式 */
+}
+</style>
