@@ -8,8 +8,11 @@
       >
         <span>声工坊</span>
         <q-btn dense flat color="primary" icon="check" @click="$q.dark.toggle()" />
-        <div class="q-space full-height q-electron-drag"></div>
-        <AppControl />
+        <div
+          class="q-space full-height"
+          :class="$q.platform.is.electron ? 'q-electron-drag' : ''"
+        ></div>
+        <AppControl v-if="$q.platform.is.electron" />
       </q-bar>
     </q-header>
 

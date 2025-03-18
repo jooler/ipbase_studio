@@ -3,8 +3,13 @@
 
 import { defineConfig } from '#q-app/wrappers'
 import { fileURLToPath } from 'node:url'
+// import { loadEnv } from 'vite'
 
 export default defineConfig((ctx) => {
+  // Load env file based on mode
+  // https://vitejs.dev/guide/env-and-mode.html
+  // const env = loadEnv(ctx.mode, process.cwd(), '')
+
   return {
     // https://v2.quasar.dev/quasar-cli-vite/prefetch-feature
     // preFetch: true,
@@ -47,7 +52,7 @@ export default defineConfig((ctx) => {
 
       // publicPath: '/',
       // analyze: true,
-      // env: {},
+      env: {},
       // rawDefine: {}
       // ignorePublicFolder: true,
       // minify: false,
