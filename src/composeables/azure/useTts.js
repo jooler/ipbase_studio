@@ -24,6 +24,11 @@ export function useTts() {
   const useCustomEndpoint = ref(false)
   const customEndpoint = ref('')
   const locales = ref([])
+  // Use REST API directly
+  const apiUrl =
+    useCustomEndpoint.value && customEndpoint.value
+      ? customEndpoint.value
+      : `https://${region}.tts.speech.microsoft.com/cognitiveservices/v1`
 
   // Initialize speech synthesis hook
   const { updateConfig, fetchVoiceList, getUniqueLocales, filterByLocale } = useSpeechSynthesis({
@@ -238,14 +243,6 @@ export function useTts() {
       // 输出SSML内容以便调试
       console.log('Sending SSML to API:', ssmlContent.value)
 
-      // Use REST API directly
-      const apiUrl =
-        useCustomEndpoint.value && customEndpoint.value
-          ? customEndpoint.value
-          : `https://${region}.tts.speech.microsoft.com/cognitiveservices/v1`
-
-      console.log('Using API URL:', apiUrl)
-
       // 确保选择了有效的语音
       if (selectedVoice.value && selectedVoice.value.value) {
         console.log('Using voice:', selectedVoice.value.value)
@@ -389,6 +386,8 @@ export function useTts() {
   }
 
   return {
+    apiUrl,
+    apiKey,
     // State
     textToConvert,
     ssmlContent,
