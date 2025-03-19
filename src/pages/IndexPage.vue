@@ -36,36 +36,73 @@
     <template #rightDrawerContent>
       <div class="config-container q-pa-md">
         <q-select v-model="selectedLocale" :options="locales" label="语言" filled class="q-mb-md" />
-        <q-scroll-area v-if="selectedLocale" class="q-mt-md" style="height: 500px; width: 100%">
+
+        <!-- 添加预览文本提示 -->
+        <div v-if="customPreviewText" class="custom-preview-text q-mb-md q-pa-sm">
+          <div class="row items-center">
+            <q-icon name="record_voice_over" size="sm" color="green" class="q-mr-xs" />
+            <div class="text-caption">当前预览文本: {{ customPreviewText }}</div>
+          </div>
+        </div>
+
+        <q-scroll-area
+          ref="voiceScrollArea"
+          v-if="selectedLocale"
+          class="q-mt-md"
+          style="height: 500px; width: 100%"
+        >
           <div class="row">
             <div v-for="i in voiceOptions" :key="i.value" class="col-4 q-pa-xs">
               <q-card
+                :id="`voice-card-${i.value}`"
                 bordered
                 flat
-                class="cursor-pointer hovered-item"
-                :class="{ 'bg-primary': selectedVoice?.value === i.value }"
-                @click="selectedVoice = i"
+                class="hovered-item"
+                :class="{ 'border-primary': selectedVoice?.value === i.value }"
               >
-                <div class="column flex-center q-py-md">
+                <div class="cursor-pointer column flex-center q-py-md" @click="selectedVoice = i">
                   <q-avatar>
                     {{ i.Gender === 'Female' ? '女' : '男' }}
                   </q-avatar>
                   <span class="q-py-sm">{{ i.DisplayName }}</span>
+                  <q-tooltip class="no-padding transparent">
+                    <q-card bordered>
+                      <q-card-section
+                        class="q-pa-sm font-medium"
+                        :class="$q.dark.mode ? 'text-white' : 'text-black'"
+                      >
+                        选择此语音
+                      </q-card-section>
+                    </q-card>
+                  </q-tooltip>
                 </div>
-                <div
-                  class="absolute-full flex flex-center hover-show transition"
-                  :style="`background-color: rgba(${!$q.dark.mode ? '0, 0, 0' : '255, 255, 255'}, 0.2)`"
-                >
+                <q-card-section class="row no-wrap items-center q-pa-sm border-top">
                   <q-btn
-                    round
+                    dense
+                    size="sm"
+                    flat
                     color="primary"
-                    :icon="playingVoice === i.value ? 'mdi-stop' : 'mdi-play'"
+                    :icon="getPlayIcon(i.value)"
                     @click.stop="previewVoice(i)"
                     :loading="previewingVoice === i.value"
                   >
-                    <q-tooltip>{{ playingVoice === i.value ? '停止预览' : '预览语音' }}</q-tooltip>
+                    <q-tooltip>{{
+                      getPlayIcon(i.value) === 'mdi-play' ? '预览语音' : '暂停预览'
+                    }}</q-tooltip>
                   </q-btn>
-                </div>
+                  <q-space />
+                  <q-btn
+                    dense
+                    flat
+                    round
+                    size="sm"
+                    icon="mdi-star"
+                    :color="isFavorite(i.value) ? 'orange' : ''"
+                    @click.stop="toggleFavorite(i.value)"
+                  >
+                    <q-tooltip>{{ isFavorite(i.value) ? '取消收藏' : '收藏此语音' }}</q-tooltip>
+                  </q-btn>
+                </q-card-section>
               </q-card>
             </div>
           </div>
@@ -128,7 +165,13 @@
     <template v-if="audioUrl" #footer>
       <WaveSurfer :url="audioUrl">
         <template #more>
-          <q-btn flat dense round icon="mdi-dots-vertical">
+          <q-btn
+            flat
+            dense
+            round
+            icon="mdi-dots-vertical"
+            :color="$q.dark.mode ? 'grey-1' : 'grey-8'"
+          >
             <q-menu class="radius-sm">
               <q-list bordered dense class="radius-sm q-pa-xs">
                 <q-item
@@ -157,10 +200,11 @@ import WaveSurfer from 'src/components/WaveSurfer.vue'
 import TiptapSsml from 'src/components/TiptapSsml.vue'
 import { useTts } from '../composeables/azure/useTts'
 
+// Ref for scroll area
+const voiceScrollArea = ref(null)
+
 // Use the TTS composable
 const {
-  apiUrl,
-  apiKey,
   ssmlContent,
   isConverting,
   audioUrl,
@@ -171,101 +215,65 @@ const {
   locales,
   selectedRateValue,
   selectedPitchValue,
+  // 预览相关功能
+  previewingVoice,
+  previewVoice,
+  getPlayIcon,
+  customPreviewText,
+  // 收藏相关功能
+  isFavorite,
+  toggleFavorite,
+  // 方法
   initVoices,
   convertToSpeech,
   saveConfig,
   restoreConfig,
 } = useTts()
 
-// 添加预览状态变量
-const previewingVoice = ref(null)
-const playingVoice = ref(null)
-const previewAudio = ref(null)
+// 滚动到选中的语音卡片
+const scrollToSelectedVoice = async () => {
+  if (!selectedVoice.value?.value) return
 
-// 预览语音功能
-const previewVoice = async (voice) => {
-  // 如果当前正在播放这个语音，则停止播放
-  if (playingVoice.value === voice.value && previewAudio.value) {
-    previewAudio.value.pause()
-    previewAudio.value = null
-    playingVoice.value = null
-    return
-  }
+  // 等待组件渲染完成
+  await nextTick()
 
-  // 如果正在播放其他语音，先停止
-  if (previewAudio.value) {
-    previewAudio.value.pause()
-    previewAudio.value = null
-  }
+  // 找到要滚动到的元素
+  const cardId = `voice-card-${selectedVoice.value.value}`
+  const card = document.getElementById(cardId)
 
-  previewingVoice.value = voice.value
-
-  // 生成预览文本的SSML，根据当前选择的语言添加适当的预览文本
-  let previewText = '这是一段语音预览示例。'
-
-  // 根据不同语言选择不同的预览文本
-  if (selectedLocale.value?.value?.startsWith('en')) {
-    previewText = 'This is a voice preview sample.'
-  } else if (selectedLocale.value?.value?.startsWith('ja')) {
-    previewText = 'これは音声プレビューのサンプルです。'
-  } else if (selectedLocale.value?.value?.startsWith('ko')) {
-    previewText = '이것은 음성 미리보기 샘플입니다.'
-  }
-
-  const previewSsml = `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="${selectedLocale.value.value}">
-    <voice name="${voice.value}">
-      <break strength="medium"/>
-      <prosody  volume="${volume.value}%">
-        ${previewText}
-      </prosody>
-      <break strength="medium"/>
-    </voice>
-  </speak>`
-
-  try {
-    // 直接调用API进行转换，而不修改当前选中的语音
-    const response = await fetch(apiUrl, {
-      method: 'POST',
-      headers: {
-        'Ocp-Apim-Subscription-Key': apiKey,
-        'Content-Type': 'application/ssml+xml',
-        'X-Microsoft-OutputFormat': 'audio-16khz-128kbitrate-mono-mp3',
-        'User-Agent': 'AzureTTSApp/1.0',
-      },
-      body: previewSsml,
-    })
-
-    if (!response.ok) {
-      console.error('预览语音失败:', await response.text())
-      return
+  if (card && voiceScrollArea.value) {
+    // 使用简单方法：直接使用元素的offsetTop计算滚动位置
+    // 获取当前选中的卡片在容器内的相对位置
+    const content = voiceScrollArea.value.$el.querySelector('.q-scroll-area__container')
+    // 计算当前卡片相对于滚动容器的偏移
+    let offsetTop = 0
+    let element = card
+    while (element && element !== content) {
+      offsetTop += element.offsetTop
+      element = element.offsetParent
     }
 
-    const audioBlob = await response.blob()
-    const url = URL.createObjectURL(audioBlob)
+    // 这个值可能需要调整，确保卡片不会刚好在边缘
+    const scrollPadding = 20
 
-    // 创建音频元素并播放
-    const audio = new Audio(url)
-    previewAudio.value = audio
-    playingVoice.value = voice.value
-
-    audio.play()
-
-    // 播放完成后释放URL
-    audio.onended = () => {
-      URL.revokeObjectURL(url)
-      playingVoice.value = null
-      previewAudio.value = null
-    }
-  } catch (error) {
-    console.error('预览语音出错:', error)
-  } finally {
-    previewingVoice.value = null
+    // 设置滚动位置
+    voiceScrollArea.value.setScrollPosition('vertical', offsetTop - scrollPadding, 300)
   }
 }
 
 // 监听配置变化并保存
 watch([selectedLocale, selectedVoice, selectedRateValue, selectedPitchValue, volume], () => {
   saveConfig()
+})
+
+// Handle SSML content updates from TiptapSsml
+const onSsmlChange = (value) => {
+  ssmlContent.value = value
+}
+
+// Add watch to debug customPreviewText changes
+watch(customPreviewText, (newVal) => {
+  console.log('IndexPage detected customPreviewText change:', newVal)
 })
 
 // Initialize values based on selected options
@@ -281,12 +289,15 @@ onMounted(async () => {
   if (!selectedPitchValue.value) {
     selectedPitchValue.value = 100
   }
-})
 
-// Handle SSML content updates from TiptapSsml
-const onSsmlChange = (value) => {
-  ssmlContent.value = value
-}
+  // 如果存在选中的语音，滚动到对应位置
+  if (selectedVoice.value?.value) {
+    // 稍微延迟一下，确保组件已经完全渲染
+    setTimeout(() => {
+      scrollToSelectedVoice()
+    }, 300)
+  }
+})
 </script>
 
 <style scoped>
@@ -298,5 +309,11 @@ const onSsmlChange = (value) => {
 
 .audio-output {
   margin-top: 20px;
+}
+
+.custom-preview-text {
+  background-color: rgba(76, 175, 80, 0.1);
+  border-radius: 4px;
+  border-left: 3px solid #4caf50;
 }
 </style>

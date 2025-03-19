@@ -3,11 +3,20 @@ import { useSpeechSynthesis } from './SpeechSynthesis'
 import localeMappings from '../../localeMappings.js'
 import localforage from 'localforage'
 
+// 创建一个单例实例
+let ttsInstance = null
+
 export function useTts() {
+  // 如果已经存在实例，直接返回
+  if (ttsInstance) {
+    return ttsInstance
+  }
+
   const apiKey = process.env.VITE_TTS_KEY
   const region = process.env.VITE_TTS_REGION
 
   const VOICE_CONFIG_KEY = 'tts_voice_config'
+  const FAVORITE_VOICES_KEY = 'tts_favorite_voices'
 
   // Text input
   const textToConvert = ref('')
@@ -24,6 +33,22 @@ export function useTts() {
   const useCustomEndpoint = ref(false)
   const customEndpoint = ref('')
   const locales = ref([])
+
+  // Favorites
+  const favoriteVoices = ref([])
+
+  // 预览相关状态
+  const previewingVoice = ref(null)
+  const playingVoice = ref(null)
+  const previewAudio = ref(null)
+  const audioCache = ref({})
+  const customPreviewText = ref('')
+
+  // 设置自定义预览文本
+  const setCustomPreviewText = (text) => {
+    customPreviewText.value = text
+  }
+
   // Use REST API directly
   const apiUrl =
     useCustomEndpoint.value && customEndpoint.value
@@ -38,6 +63,105 @@ export function useTts() {
     useCustomEndpoint: useCustomEndpoint.value,
     customEndpoint: customEndpoint.value,
   })
+
+  // 更新播放图标显示逻辑
+  const getPlayIcon = (voiceValue) => {
+    if (playingVoice.value !== voiceValue) return 'mdi-play'
+    if (previewAudio.value?.paused) return 'mdi-play'
+    return 'mdi-pause'
+  }
+
+  // 预览语音功能
+  const previewVoice = async (voice) => {
+    console.log('customPreviewText:', customPreviewText.value) // 调试日志
+    // 如果当前正在播放这个语音，则暂停或恢复播放
+    if (playingVoice.value === voice.value && previewAudio.value) {
+      if (previewAudio.value.paused) {
+        // 恢复播放
+        previewAudio.value.play()
+      } else {
+        // 暂停播放
+        previewAudio.value.pause()
+      }
+      return
+    }
+
+    // 如果正在播放其他语音，先暂停
+    if (previewAudio.value) {
+      previewAudio.value.pause()
+    }
+
+    playingVoice.value = voice.value
+
+    // 使用自定义预览文本或默认文本
+    const previewText = customPreviewText.value || '这是一段语音预览示例。'
+    console.log('预览文本:', previewText) // 调试日志
+
+    // 检查缓存中是否已有该语音的预览
+    const cacheKey = `${voice.value}_${selectedLocale.value.value}_${volume.value}_${previewText}`
+
+    if (audioCache.value[cacheKey]) {
+      previewAudio.value = audioCache.value[cacheKey].audio
+      previewAudio.value.currentTime = 0 // 从头开始播放
+      previewAudio.value.play()
+      return
+    }
+
+    previewingVoice.value = voice.value
+
+    const previewSsml = `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="${selectedLocale.value.value}">
+      <voice name="${voice.value}">
+        <break strength="medium"/>
+        <prosody volume="${volume.value}%">
+          ${previewText}
+        </prosody>
+        <break strength="medium"/>
+      </voice>
+    </speak>`
+
+    try {
+      // 直接调用API进行转换，而不修改当前选中的语音
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Ocp-Apim-Subscription-Key': apiKey,
+          'Content-Type': 'application/ssml+xml',
+          'X-Microsoft-OutputFormat': 'audio-16khz-128kbitrate-mono-mp3',
+          'User-Agent': 'AzureTTSApp/1.0',
+        },
+        body: previewSsml,
+      })
+
+      if (!response.ok) {
+        console.error('预览语音失败:', await response.text())
+        return
+      }
+
+      const audioBlob = await response.blob()
+      const url = URL.createObjectURL(audioBlob)
+
+      // 创建音频元素并播放
+      const audio = new Audio(url)
+      previewAudio.value = audio
+
+      // 将音频保存到缓存
+      audioCache.value[cacheKey] = {
+        audio,
+        text: previewText,
+      }
+
+      audio.play()
+
+      // 播放完成后更新状态
+      audio.onended = () => {
+        playingVoice.value = null
+      }
+    } catch (error) {
+      console.error('预览语音出错:', error)
+    } finally {
+      previewingVoice.value = null
+    }
+  }
 
   // Watch for locale changes to update voice options
   watch(selectedLocale, (newLocale) => {
@@ -65,6 +189,46 @@ export function useTts() {
     },
   )
 
+  // 收藏语音相关功能
+  const isFavorite = (voiceValue) => {
+    return favoriteVoices.value.includes(voiceValue)
+  }
+
+  const toggleFavorite = async (voiceValue) => {
+    const index = favoriteVoices.value.indexOf(voiceValue)
+    if (index >= 0) {
+      // 已收藏，移除收藏
+      favoriteVoices.value.splice(index, 1)
+    } else {
+      // 未收藏，添加收藏
+      favoriteVoices.value.push(voiceValue)
+    }
+
+    // 保存到本地存储
+    await saveFavorites()
+  }
+
+  const saveFavorites = async () => {
+    try {
+      // 确保我们只保存语音ID的数组（简单字符串值）
+      const favoritesToSave = [...favoriteVoices.value]
+      await localforage.setItem(FAVORITE_VOICES_KEY, favoritesToSave)
+    } catch (error) {
+      console.error('保存收藏失败:', error)
+    }
+  }
+
+  const loadFavorites = async () => {
+    try {
+      const favorites = await localforage.getItem(FAVORITE_VOICES_KEY)
+      if (favorites && Array.isArray(favorites)) {
+        favoriteVoices.value = favorites
+      }
+    } catch (error) {
+      console.error('加载收藏失败:', error)
+    }
+  }
+
   // Initialize voice list
   const initVoices = async () => {
     voiceList.value = await fetchVoiceList()
@@ -76,6 +240,9 @@ export function useTts() {
         }
       })
     }
+
+    // 加载收藏的语音
+    await loadFavorites()
   }
 
   // Azure text-to-speech function
@@ -351,8 +518,6 @@ export function useTts() {
           }
         }
 
-        console.log('voiceList', voiceList.value)
-
         // 恢复语音
         if (config.voiceId) {
           const voice = voiceList.value.find((v) => v.ShortName === config.voiceId)
@@ -385,7 +550,8 @@ export function useTts() {
     }
   }
 
-  return {
+  // 创建实例
+  ttsInstance = {
     apiUrl,
     apiKey,
     // State
@@ -401,10 +567,24 @@ export function useTts() {
     voiceList,
     selectedRateValue,
     selectedPitchValue,
+    // Preview related
+    previewingVoice,
+    playingVoice,
+    previewAudio,
+    customPreviewText,
+    // Favorites related
+    favoriteVoices,
+    isFavorite,
+    toggleFavorite,
     // Methods
     initVoices,
     convertToSpeech,
     saveConfig,
     restoreConfig,
+    previewVoice,
+    getPlayIcon,
+    setCustomPreviewText,
   }
+
+  return ttsInstance
 }

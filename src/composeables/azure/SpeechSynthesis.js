@@ -1,4 +1,4 @@
-import localforage from "localforage"
+import localforage from 'localforage'
 /**
  * 创建一个封装Azure语音合成功能的可复用hook
  * @param {Object} options 语音合成配置选项
@@ -19,29 +19,30 @@ export function useSpeechSynthesis(options = {}) {
     if (!config.speechKey) {
       throw new Error('语音服务密钥未提供')
     }
-    const checkExpire = (timestamp,range) => {
+    const checkExpire = (timestamp, range) => {
       // 使用缓存机制（1小时有效期）
       const now = Date.now()
       return now - timestamp < range
     }
     const cache = await localforage.getItem('voiceList')
-    if(cache?.dateset){
-      if(checkExpire(cache.updatedAt, 1000 * 60 * 60)){
+    if (cache?.dateset) {
+      if (checkExpire(cache.updatedAt, 1000 * 60 * 60)) {
         config.voiceList = cache.dateset
         return config.voiceList
       }
     }
 
-    const apiUrl = config.useCustomEndpoint && config.customEndpoint
-      ? new URL('/cognitiveservices/voices/list', config.customEndpoint).href
-      : `https://${config.speechRegion}.tts.speech.microsoft.com/cognitiveservices/voices/list`
+    const apiUrl =
+      config.useCustomEndpoint && config.customEndpoint
+        ? new URL('/cognitiveservices/voices/list', config.customEndpoint).href
+        : `https://${config.speechRegion}.tts.speech.microsoft.com/cognitiveservices/voices/list`
 
     const response = await fetch(apiUrl, {
       method: 'GET',
       headers: {
         'Ocp-Apim-Subscription-Key': config.speechKey,
-        'Content-Type': 'application/json'
-      }
+        'Content-Type': 'application/json',
+      },
     })
 
     if (!response.ok) {
@@ -56,7 +57,7 @@ export function useSpeechSynthesis(options = {}) {
     config.voiceList = voices
     return config.voiceList
   }
-  
+
   /**
    * 获取所有语音条目的唯一区域码
    * @param {Array} voiceList 语音列表
@@ -64,7 +65,7 @@ export function useSpeechSynthesis(options = {}) {
    */
   const getUniqueLocales = (voiceList) => {
     if (!Array.isArray(voiceList)) return []
-    return [...new Set(voiceList.map(item => item.Locale?.toLowerCase()))].filter(Boolean)
+    return [...new Set(voiceList.map((item) => item.Locale?.toLowerCase()))].filter(Boolean)
   }
 
   /**
@@ -74,15 +75,11 @@ export function useSpeechSynthesis(options = {}) {
    * @returns {Array} 匹配的语音条目
    */
   const filterByLocale = (voiceList, targetLocale) => {
-    console.log('voiceList', targetLocale);
-    
-    if(!targetLocale) return []
+    if (!targetLocale) return []
     if (!Array.isArray(voiceList)) return []
     const searchLocale = targetLocale.value?.toLowerCase()
-    
-    return voiceList.filter(item => 
-      item.Locale?.toLowerCase() === searchLocale
-    )
+
+    return voiceList.filter((item) => item.Locale?.toLowerCase() === searchLocale)
   }
 
   // 返回包含合成方法的对象
@@ -92,6 +89,6 @@ export function useSpeechSynthesis(options = {}) {
     },
     fetchVoiceList,
     getUniqueLocales,
-    filterByLocale
+    filterByLocale,
   }
 }

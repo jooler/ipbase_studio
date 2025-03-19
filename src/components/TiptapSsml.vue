@@ -57,6 +57,15 @@
               >
                 <q-tooltip>音量</q-tooltip>
               </q-btn>
+              <q-btn
+                color="green"
+                @click="setSelectedTextAsPreview"
+                icon="record_voice_over"
+                unelevated
+                :disable="!hasTextSelection"
+              >
+                <q-tooltip>设为预览文本</q-tooltip>
+              </q-btn>
             </template>
             <q-btn v-if="!hasTextSelection" flat icon="pause">
               <q-menu>
@@ -173,6 +182,11 @@
         </q-card>
       </BubbleMenu>
     </template>
+
+    <!-- 成功提示 -->
+    <div v-if="showSuccessToast" class="preview-text-set-toast">
+      <span>{{ successMessage }}</span>
+    </div>
   </div>
 </template>
 
@@ -223,7 +237,7 @@ const emit = defineEmits([
 ])
 
 // Get data from useTts
-const { voiceList, initVoices } = useTts()
+const { voiceList, initVoices, setCustomPreviewText, customPreviewText } = useTts()
 
 // Initialize voices
 initVoices()
@@ -329,6 +343,18 @@ const SsmlParagraph = Node.create({
           }
           return {
             'data-volume': attributes.volume,
+          }
+        },
+      },
+      isPreviewText: {
+        default: false,
+        parseHTML: (element) => element.hasAttribute('data-preview-text'),
+        renderHTML: (attributes) => {
+          if (!attributes.isPreviewText) {
+            return {}
+          }
+          return {
+            'data-preview-text': '',
           }
         },
       },
@@ -495,7 +521,7 @@ const CustomPasteHandler = Extension.create({
 
           // 如果处理结果不为空，插入HTML
           if (result) {
-            editor.commands.insertContent(result)
+            editor.value.commands.insertContent(result)
             return true // 阻止默认粘贴行为
           }
 
@@ -504,6 +530,26 @@ const CustomPasteHandler = Extension.create({
       },
     ]
   },
+})
+
+// Track active preview paragraph
+// const activePreviewParagraph = ref(null)
+
+// Watch for changes in customPreviewText to update UI
+watch(customPreviewText, (newValue) => {
+  // If preview text is cleared, clear all paragraphs' isPreviewText attribute
+  if (!newValue && editor.value) {
+    // Find any paragraphs with isPreviewText=true and unset them
+    editor.value.state.doc.descendants((node, pos) => {
+      if (node.type.name === 'paragraph' && node.attrs.isPreviewText) {
+        editor.value
+          .chain()
+          .setNodeSelection(pos)
+          .updateAttributes('paragraph', { ...node.attrs, isPreviewText: false })
+          .run()
+      }
+    })
+  }
 })
 
 // Initialize editor
@@ -518,6 +564,7 @@ const editor = useEditor({
     SsmlBreak,
     // 自定义粘贴处理扩展
     CustomPasteHandler,
+    // 移除预览文本装饰器
     History,
   ],
   onSelectionUpdate: ({ editor }) => {
@@ -826,10 +873,6 @@ const convertToSsml = (json) => {
   }
 
   ssml += '</speak>'
-
-  // 输出调试信息
-  console.log('生成的SSML:', ssml)
-
   return ssml
 }
 
@@ -932,13 +975,189 @@ const hasTextSelection = computed(() => {
 // 添加一个变量跟踪是否在编辑停顿
 const isEditingBreak = ref(false)
 
-// 在编辑器初始化后，添加停顿图标的点击处理
+// 添加显示成功提示的状态
+const showSuccessToast = ref(false)
+const successMessage = ref('')
+
+// 设置选中的文本作为预览文本
+const setSelectedTextAsPreview = () => {
+  if (!editor.value) return
+
+  const { from, to } = editor.value.state.selection
+  if (from === to) return // 没有选中文本
+
+  const selectedText = editor.value.state.doc.textBetween(from, to, ' ')
+  if (selectedText.trim()) {
+    console.log('TiptapSsml setting customPreviewText:', selectedText.trim())
+    setCustomPreviewText(selectedText.trim())
+
+    // Clear any existing preview paragraphs
+    editor.value.state.doc.descendants((node, pos) => {
+      if (node.type.name === 'paragraph' && node.attrs.isPreviewText) {
+        editor.value
+          .chain()
+          .setNodeSelection(pos)
+          .updateAttributes('paragraph', { ...node.attrs, isPreviewText: false })
+          .run()
+      }
+    })
+
+    // Find the paragraph containing this selection and mark it as preview text
+    let $pos = editor.value.state.doc.resolve(from)
+    let depth = $pos.depth
+    while (depth > 0) {
+      let node = $pos.node(depth)
+      if (node.type.name === 'paragraph') {
+        // Set the current paragraph as preview text
+        const paragraphPos = $pos.before(depth)
+        editor.value
+          .chain()
+          .setNodeSelection(paragraphPos)
+          .updateAttributes('paragraph', { ...node.attrs, isPreviewText: true })
+          .run()
+        break
+      }
+      depth--
+    }
+
+    // 显示提示消息
+    successMessage.value = '已设置预览文本'
+    showSuccessToast.value = true
+    setTimeout(() => {
+      showSuccessToast.value = false
+    }, 2000)
+  }
+}
+
+// 清除自定义预览文本
+const clearCustomPreviewText = () => {
+  console.log('TiptapSsml clearing customPreviewText')
+  setCustomPreviewText('')
+
+  // Clear isPreviewText attribute from all paragraphs
+  if (editor.value) {
+    editor.value.state.doc.descendants((node, pos) => {
+      if (node.type.name === 'paragraph' && node.attrs.isPreviewText) {
+        editor.value
+          .chain()
+          .setNodeSelection(pos)
+          .updateAttributes('paragraph', { ...node.attrs, isPreviewText: false })
+          .run()
+      }
+    })
+  }
+
+  // 显示提示消息
+  successMessage.value = '已清除预览文本'
+  showSuccessToast.value = true
+  setTimeout(() => {
+    showSuccessToast.value = false
+  }, 2000)
+}
+
+// 从段落设置预览文本
+const setPreviewTextFromParagraph = (event) => {
+  // 确保点击的是段落前面的区域
+  const rect = event.target.getBoundingClientRect()
+  const offsetX = event.clientX - rect.left
+
+  // 只处理左侧30px的点击
+  if (offsetX > 30) return
+
+  if (!editor.value) return
+
+  // 查找点击的段落
+  const element = event.target.closest('p')
+  if (!element) return
+
+  // Check if this is the clear button click
+  if (element.hasAttribute('data-preview-text') && offsetX <= 24) {
+    clearCustomPreviewText()
+    return
+  }
+
+  // Check if this is the set preview button click for a non-preview paragraph
+  if (!element.hasAttribute('data-preview-text') && offsetX <= 24) {
+    // 提取段落文本
+    const text = element.textContent.trim()
+    if (text) {
+      // Set the custom preview text
+      setCustomPreviewText(text)
+
+      // Find and clear any existing preview paragraphs
+      editor.value.state.doc.descendants((node, pos) => {
+        if (node.type.name === 'paragraph' && node.attrs.isPreviewText) {
+          editor.value
+            .chain()
+            .setNodeSelection(pos)
+            .updateAttributes('paragraph', { ...node.attrs, isPreviewText: false })
+            .run()
+        }
+      })
+
+      // 使用更可靠的方法设置当前段落为预览文本
+      try {
+        // 获取元素的位置信息
+        const pos = editor.value.view.posAtDOM(element, 0)
+        // 查找pos对应的位置所在的段落节点
+        const $pos = editor.value.state.doc.resolve(pos)
+        let depth = $pos.depth
+        let foundParagraph = false
+
+        // 向上遍历节点结构寻找段落节点
+        while (depth >= 0) {
+          const node = $pos.node(depth)
+          if (node.type.name === 'paragraph') {
+            // 找到段落节点，设置它的属性
+            const paragraphPos = $pos.before(depth)
+
+            editor.value
+              .chain()
+              .setNodeSelection(paragraphPos)
+              .updateAttributes('paragraph', { isPreviewText: true })
+              .run()
+
+            foundParagraph = true
+            break
+          }
+          depth--
+        }
+
+        if (!foundParagraph) {
+          // 备选方法：设置从当前位置开始的段落
+          console.log('未找到段落节点，尝试备选方法')
+          editor.value
+            .chain()
+            .setNodeSelection(pos)
+            .updateAttributes('paragraph', { isPreviewText: true })
+            .run()
+        }
+      } catch (e) {
+        console.error('设置预览段落时出错:', e)
+      }
+
+      // 显示成功提示
+      successMessage.value = '已设置预览文本'
+      showSuccessToast.value = true
+      setTimeout(() => {
+        showSuccessToast.value = false
+      }, 2000)
+    }
+  }
+}
+
+// 在编辑器初始化后添加行点击事件
 onMounted(() => {
   if (editor.value) {
-    // 使用事件委托为编辑器内的break图标添加点击事件
+    // 使用事件委托为编辑器内的段落添加点击事件
     const editorElement = document.querySelector('.editor-content')
     if (editorElement) {
       editorElement.addEventListener('click', (event) => {
+        // 处理段落预览按钮点击
+        if (event.target.closest('p')) {
+          setPreviewTextFromParagraph(event)
+        }
+
         // 检查点击的是否是停顿图标
         if (event.target.closest('.ssml-break') || event.target.closest('[data-break-edit]')) {
           isEditingBreak.value = true
@@ -957,8 +1176,27 @@ onMounted(() => {
 
 // 自定义浮动菜单显示逻辑
 const shouldShowBubbleMenu = ({ editor }) => {
-  // 当编辑停顿或编辑器有焦点时显示菜单
-  return editor.isFocused || isEditingBreak.value
+  // 如果没有焦点或者不是停顿编辑模式，不显示
+  if (!editor.isFocused && !isEditingBreak.value) {
+    return false
+  }
+
+  // 检查光标是否在行首位置
+  const { from, empty } = editor.state.selection
+
+  // 如果光标处于段落开头且是单光标（没有选择文本），不显示浮动工具栏
+  if (empty) {
+    const $pos = editor.state.doc.resolve(from)
+    const parentNode = $pos.parent
+
+    // 检查光标是否在当前节点的开始位置
+    if (parentNode.type.name === 'paragraph' && $pos.parentOffset === 0) {
+      return false
+    }
+  }
+
+  // 当编辑停顿或编辑器有焦点且不在行首时显示菜单
+  return true
 }
 
 // 插入或更新停顿函数
@@ -1027,6 +1265,7 @@ const insertBreak = (strength) => {
 .tiptap-ssml-editor {
   display: flex;
   flex-direction: column;
+  position: relative;
 }
 
 .global-controls {
@@ -1067,6 +1306,121 @@ const insertBreak = (strength) => {
   text-decoration: wavy underline #ff9800;
 }
 
+/* CSS for preview text paragraphs and buttons */
+.editor-content :deep(p) {
+  position: relative;
+  padding-left: 30px; /* 为按钮留出空间 */
+  border-left: 3px solid #4caf5000;
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+/* Set preview button - shown on hover for paragraphs that aren't previews */
+.editor-content :deep(p:not([data-preview-text])):hover::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 2px;
+  width: 19px;
+  height: 19px;
+  opacity: 1;
+  background-image: url('data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMTAyNCAxMDI0IiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCI+PHBhdGggZD0iTTU1NC42NjY2NjcgMzYyLjY2NjY2N3YyOTguNjY2NjY2YTIxLjMzMzMzMyAyMS4zMzMzMzMgMCAwIDEtMjEuMzMzMzM0IDIxLjMzMzMzNGgtNDIuNjY2NjY2YTIxLjMzMzMzMyAyMS4zMzMzMzMgMCAwIDEtMjEuMzMzMzM0LTIxLjMzMzMzNHYtMjk4LjY2NjY2NmEyMS4zMzMzMzMgMjEuMzMzMzMzIDAgMCAxIDIxLjMzMzMzNC0yMS4zMzMzMzRoNDIuNjY2NjY2YTIxLjMzMzMzMyAyMS4zMzMzMzMgMCAwIDEgMjEuMzMzMzM0IDIxLjMzMzMzNHpNNzA0IDEyOGgtNDIuNjY2NjY3YTIxLjMzMzMzMyAyMS4zMzMzMzMgMCAwIDAtMjEuMzMzMzMzIDIxLjMzMzMzM3Y3MjUuMzMzMzM0YTIxLjMzMzMzMyAyMS4zMzMzMzMgMCAwIDAgMjEuMzMzMzMzIDIxLjMzMzMzM2g0Mi42NjY2NjdhMjEuMzMzMzMzIDIxLjMzMzMzMyAwIDAgMCAyMS4zMzMzMzMtMjEuMzMzMzMzdi03MjUuMzMzMzM0YTIxLjMzMzMzMyAyMS4zMzMzMzMgMCAwIDAtMjEuMzMzMzMzLTIxLjMzMzMzM3ogbSAxNzAuNjY2NjY3IDI5OC42NjY2NjdoLTQyLjY2NjY2N2EyMS4zMzMzMzMgMjEuMzMzMzMzIDAgMCAwLTIxLjMzMzMzMyAyMS4zMzMzMzN2MTI4YTIxLjMzMzMzMyAyMS4zMzMzMzMgMCAwIDAgMjEuMzMzMzMzIDIxLjMzMzMzM2g0Mi42NjY2NjdhMjEuMzMzMzMzIDIxLjMzMzMzMyAwIDAgMCAyMS4zMzMzMzMtMjEuMzMzMzMzdi0xMjhhMjEuMzMzMzMzIDIxLjMzMzMzMyAwIDAgMC0yMS4zMzMzMzMtMjEuMzMzMzMzeiBtLTY4Mi42NjY2NjcgNDIuNjY2NjY2aC00Mi42NjY2NjdhMjEuMzMzMzMzIDIxLjMzMzMzMyAwIDAgMC0yMS4zMzMzMzMgMjEuMzMzMzM0djQyLjY2NjY2NmEyMS4zMzMzMzMgMjEuMzMzMzMzIDAgMCAwIDIxLjMzMzMzMyAyMS4zMzMzMzRoNDIuNjY2NjY3YTIxLjMzMzMzMyAyMS4zMzMzMzMgMCAwIDAgMjEuMzMzMzMzLTIxLjMzMzMzNHYtNDIuNjY2NjY2YTIxLjMzMzMzMyAyMS4zMzMzMzMgMCAwIDAtMjEuMzMzMzMzLTIxLjMzMzMzNHogbSAxNzAuNjY2NjY3LTIxMy4zMzMzMzNoLTQyLjY2NjY2N2EyMS4zMzMzMzMgMjEuMzMzMzMzIDAgMCAwLTIxLjMzMzMzMyAyMS4zMzMzMzN2NDY5LjMzMzMzNGEyMS4zMzMzMzMgMjEuMzMzMzMzIDAgMCAwIDIxLjMzMzMzMyAyMS4zMzMzMzNoNDIuNjY2NjY3YTIxLjMzMzMzMyAyMS4zMzMzMzMgMCAwIDAgMjEuMzMzMzMzLTIxLjMzMzMzM3YtNDY5LjMzMzMzNGEyMS4zMzMzMzMgMjEuMzMzMzMzIDAgMCAwLTIxLjMzMzMzMy0yMS4zMzMzMzN6IiBmaWxsPSIjMTI5NmRiIi8+PC9zdmc+');
+  background-repeat: no-repeat;
+  background-position: center;
+  cursor: pointer;
+  z-index: 10;
+}
+
+/* Set preview button tooltip */
+.editor-content :deep(p:not([data-preview-text])):hover::after {
+  content: '';
+  position: absolute;
+  left: 26px;
+  top: 2px;
+  background: rgba(0, 0, 0, 0);
+  color: rgb(83, 163, 255);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  opacity: 0;
+  transition: opacity 0.2s;
+  pointer-events: none;
+  z-index: 100;
+  white-space: nowrap;
+  backdrop-filter: blur(5px);
+}
+
+.editor-content :deep(p:not([data-preview-text])):hover:hover::after {
+  opacity: 1;
+}
+
+/* Preview paragraph styling */
+.editor-content :deep(p[data-preview-text]) {
+  background-color: rgba(76, 175, 80, 0.05);
+  border-left: 3px solid #4caf50;
+}
+
+/* Clear preview button - always shown for preview paragraphs */
+.editor-content :deep(p[data-preview-text])::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 2px;
+  width: 19px;
+  height: 19px;
+  opacity: 1;
+  background-image: url('data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMTAyNCAxMDI0IiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCI+PHBhdGggZD0iTTUxMiA2MzJjLTIyLjA4IDAtNDAgMTcuOTItNDAgNDB2Mjg4YTQwIDQwIDAgMCAwIDgwIDB2LTI4OGMwLTIyLjA4LTE3LjkyLTQwLTQwLTQwek01MTIgMzkyYzIyLjA4IDAgNDAtMTcuOTIgNDAtNDBWNjRhNDAgNDAgMCAwIDAtODAgMHYyODhjMCAyMi4wOCAxNy45MiA0MCA0MCA0MHpNOTg2LjI0IDY0OS4wMjRMNjcuNDg4IDMwMC43MDRhNDAgNDAgMCAwIDAtMjkuNzI4IDc0LjMwNGw5MTguNzUyIDM0OC4zMmE0MCA0MCAwIDAgMCAyOS43MjgtNzQuMzA0ek03MzYgNjk2Yy0yMi4wOCAwLTQwIDE3LjkyLTQwIDQwdjY0YTQwIDQwIDAgMCAwIDgwIDB2LTY0YzAtMjIuMDgtMTcuOTItNDAtNDAtNDB6TTczNiA0ODhjMjIuMDggMCA0MC0xNy45MiA0MC00MFYyMjRhNDAgNDAgMCAwIDAtODAgMHYyMjRjMCAyMi4wOCAxNy45MiA0MCA0MCA0MHpNMjg4IDUzNmMtMjIuMDggMC00MCAxNy45Mi00MCA0MHYyMjRhNDAgNDAgMCAwIDAgODAgMHYtMjI0YzAtMjIuMDgtMTcuOTItNDAtNDAtNDB6TTI4OCAzMjhjMjIuMDggMCA0MC0xNy45MiA0MC00MFYyMjRhNDAgNDAgMCAwIDAtODAgMHY2NGMwIDIyLjA4IDE3LjkyIDQwIDQwIDQwek02NCA0NDBjLTIyLjA4IDAtNDAgMTcuOTItNDAgNDB2MTI4YTQwIDQwIDAgMCAwIDgwIDB2LTEyOGMwLTIyLjA4LTE3LjkyLTQwLTQwLTQwek05NjAgNTg0YzIyLjA4IDAgNDAtMTcuOTIgNDAtNDB2LTEyOGE0MCA0MCAwIDAgMC04MCAwdjEyOGMwIDIyLjA4IDE3LjkyIDQwIDQwIDQweiIgZmlsbD0iI2Y0NDMzNiIvPjwvc3ZnPg==');
+  background-repeat: no-repeat;
+  background-position: center;
+  cursor: pointer;
+  z-index: 10;
+}
+
+/* Clear preview button tooltip */
+.editor-content :deep(p[data-preview-text])::after {
+  content: '';
+  position: absolute;
+  left: 26px;
+  top: 2px;
+  background: rgba(0, 0, 0, 0);
+  color: rgb(255, 94, 94);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  opacity: 0;
+  transition: opacity 0.2s;
+  pointer-events: none;
+  z-index: 100;
+  white-space: nowrap;
+  backdrop-filter: blur(5px);
+}
+
+.editor-content :deep(p[data-preview-text]):hover::after {
+  opacity: 1;
+}
+
+.preview-text-clear-btn {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 21px;
+  height: 21px;
+  z-index: 10;
+  cursor: pointer;
+  background: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  outline: none;
+}
+
+.preview-text-clear-btn:hover {
+  background: #f5f5f5;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
 .bubble-menu {
   background-color: white;
   border-radius: 4px;
@@ -1100,5 +1454,37 @@ const insertBreak = (strength) => {
 /* 覆盖tippy-box的最大宽度 */
 :deep(.tippy-box) {
   max-width: none !important;
+}
+
+.custom-preview-text {
+  background-color: rgba(76, 175, 80, 0.1);
+  border-radius: 4px;
+  border-left: 3px solid #4caf50;
+}
+
+/* 成功消息提示 */
+.preview-text-set-toast {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background-color: rgba(76, 175, 80, 0.9);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 4px;
+  z-index: 100;
+  animation: fadeOut 2s ease-in-out forwards;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+}
+
+@keyframes fadeOut {
+  0% {
+    opacity: 1;
+  }
+  70% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
 }
 </style>
