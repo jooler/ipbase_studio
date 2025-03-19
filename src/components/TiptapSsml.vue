@@ -196,7 +196,9 @@ import { useEditor, EditorContent, BubbleMenu, Node as TiptapNode } from '@tipta
 import Document from '@tiptap/extension-document'
 import Text from '@tiptap/extension-text'
 import { Mark, Node, Extension } from '@tiptap/core'
+import { Plugin } from 'prosemirror-state'
 import History from '@tiptap/extension-history'
+import Placeholder from '@tiptap/extension-placeholder'
 import { useTts } from '../composeables/azure/useTts'
 
 const props = defineProps({
@@ -223,6 +225,14 @@ const props = defineProps({
   volumeInitial: {
     type: Number,
     default: 100,
+  },
+  placeholder: {
+    type: String,
+    default: '请在此处输入文本内容...',
+  },
+  autofocus: {
+    type: Boolean,
+    default: true,
   },
 })
 
@@ -355,6 +365,17 @@ const SsmlParagraph = Node.create({
           }
           return {
             'data-preview-text': '',
+          }
+        },
+      },
+      isEmpty: {
+        default: false,
+        renderHTML: (attributes) => {
+          if (!attributes.isEmpty) {
+            return {}
+          }
+          return {
+            class: 'empty-paragraph',
           }
         },
       },
@@ -500,10 +521,10 @@ const CustomPasteHandler = Extension.create({
               // 如果遇到句号、感叹号、问号或换行符，结束当前段落
               if (/[。！？.!?\n]/.test(sentences[i])) {
                 // 创建带有属性的段落
-                result += `<p data-type="paragraph" 
-                  ${defaultAttrs.voice ? `data-voice="${defaultAttrs.voice}"` : ''} 
-                  ${defaultAttrs.rate ? `data-rate="${defaultAttrs.rate}"` : ''} 
-                  ${defaultAttrs.pitch ? `data-pitch="${defaultAttrs.pitch}"` : ''} 
+                result += `<p data-type="paragraph"
+                  ${defaultAttrs.voice ? `data-voice="${defaultAttrs.voice}"` : ''}
+                  ${defaultAttrs.rate ? `data-rate="${defaultAttrs.rate}"` : ''}
+                  ${defaultAttrs.pitch ? `data-pitch="${defaultAttrs.pitch}"` : ''}
                   ${defaultAttrs.volume ? `data-volume="${defaultAttrs.volume}"` : ''}>${currentSentence}</p>`
                 currentSentence = ''
               }
@@ -512,10 +533,10 @@ const CustomPasteHandler = Extension.create({
 
           // 添加最后一个可能未完成的段落
           if (currentSentence.trim()) {
-            result += `<p data-type="paragraph" 
-              ${defaultAttrs.voice ? `data-voice="${defaultAttrs.voice}"` : ''} 
-              ${defaultAttrs.rate ? `data-rate="${defaultAttrs.rate}"` : ''} 
-              ${defaultAttrs.pitch ? `data-pitch="${defaultAttrs.pitch}"` : ''} 
+            result += `<p data-type="paragraph"
+              ${defaultAttrs.voice ? `data-voice="${defaultAttrs.voice}"` : ''}
+              ${defaultAttrs.rate ? `data-rate="${defaultAttrs.rate}"` : ''}
+              ${defaultAttrs.pitch ? `data-pitch="${defaultAttrs.pitch}"` : ''}
               ${defaultAttrs.volume ? `data-volume="${defaultAttrs.volume}"` : ''}>${currentSentence}</p>`
           }
 
@@ -552,6 +573,44 @@ watch(customPreviewText, (newValue) => {
   }
 })
 
+// 自定义扩展，用于检测空段落
+const EmptyParagraphDetector = Extension.create({
+  name: 'emptyParagraphDetector',
+
+  addProseMirrorPlugins() {
+    return [
+      new Plugin({
+        appendTransaction: (transactions, oldState, newState) => {
+          // 只有在内容变化时才执行
+          if (!transactions.some((tr) => tr.docChanged)) return null
+
+          const tr = newState.tr
+          let modified = false
+
+          // 遍历所有段落
+          newState.doc.descendants((node, pos) => {
+            if (node.type.name === 'paragraph') {
+              // 检查段落是否为空
+              const isEmpty = node.content.size === 0
+
+              // 如果当前isEmpty状态与检测到的不一致，更新它
+              if (isEmpty !== node.attrs.isEmpty) {
+                tr.setNodeMarkup(pos, undefined, {
+                  ...node.attrs,
+                  isEmpty,
+                })
+                modified = true
+              }
+            }
+          })
+
+          return modified ? tr : null
+        },
+      }),
+    ]
+  },
+})
+
 // Initialize editor
 const editor = useEditor({
   content: props.modelValue,
@@ -564,9 +623,18 @@ const editor = useEditor({
     SsmlBreak,
     // 自定义粘贴处理扩展
     CustomPasteHandler,
+    // 添加占位符扩展
+    Placeholder.configure({
+      placeholder: props.placeholder,
+      emptyEditorClass: 'is-editor-empty',
+      emptyNodeClass: 'is-empty',
+    }),
+    // 添加空段落检测扩展
+    EmptyParagraphDetector,
     // 移除预览文本装饰器
     History,
   ],
+  autofocus: props.autofocus,
   onSelectionUpdate: ({ editor }) => {
     updateSelectionAttributes(editor)
   },
@@ -1070,6 +1138,10 @@ const setPreviewTextFromParagraph = (event) => {
   const element = event.target.closest('p')
   if (!element) return
 
+  // 检查段落是否有文本内容
+  const paragraphText = element.textContent.trim()
+  if (!paragraphText) return // 如果段落没有文本内容，不执行任何操作
+
   // Check if this is the clear button click
   if (element.hasAttribute('data-preview-text') && offsetX <= 24) {
     clearCustomPreviewText()
@@ -1078,71 +1150,67 @@ const setPreviewTextFromParagraph = (event) => {
 
   // Check if this is the set preview button click for a non-preview paragraph
   if (!element.hasAttribute('data-preview-text') && offsetX <= 24) {
-    // 提取段落文本
-    const text = element.textContent.trim()
-    if (text) {
-      // Set the custom preview text
-      setCustomPreviewText(text)
+    // 已经在上面检查过段落内容是否为空，这里直接使用paragraphText
+    setCustomPreviewText(paragraphText)
 
-      // Find and clear any existing preview paragraphs
-      editor.value.state.doc.descendants((node, pos) => {
-        if (node.type.name === 'paragraph' && node.attrs.isPreviewText) {
+    // Find and clear any existing preview paragraphs
+    editor.value.state.doc.descendants((node, pos) => {
+      if (node.type.name === 'paragraph' && node.attrs.isPreviewText) {
+        editor.value
+          .chain()
+          .setNodeSelection(pos)
+          .updateAttributes('paragraph', { ...node.attrs, isPreviewText: false })
+          .run()
+      }
+    })
+
+    // 使用更可靠的方法设置当前段落为预览文本
+    try {
+      // 获取元素的位置信息
+      const pos = editor.value.view.posAtDOM(element, 0)
+      // 查找pos对应的位置所在的段落节点
+      const $pos = editor.value.state.doc.resolve(pos)
+      let depth = $pos.depth
+      let foundParagraph = false
+
+      // 向上遍历节点结构寻找段落节点
+      while (depth >= 0) {
+        const node = $pos.node(depth)
+        if (node.type.name === 'paragraph') {
+          // 找到段落节点，设置它的属性
+          const paragraphPos = $pos.before(depth)
+
           editor.value
             .chain()
-            .setNodeSelection(pos)
-            .updateAttributes('paragraph', { ...node.attrs, isPreviewText: false })
-            .run()
-        }
-      })
-
-      // 使用更可靠的方法设置当前段落为预览文本
-      try {
-        // 获取元素的位置信息
-        const pos = editor.value.view.posAtDOM(element, 0)
-        // 查找pos对应的位置所在的段落节点
-        const $pos = editor.value.state.doc.resolve(pos)
-        let depth = $pos.depth
-        let foundParagraph = false
-
-        // 向上遍历节点结构寻找段落节点
-        while (depth >= 0) {
-          const node = $pos.node(depth)
-          if (node.type.name === 'paragraph') {
-            // 找到段落节点，设置它的属性
-            const paragraphPos = $pos.before(depth)
-
-            editor.value
-              .chain()
-              .setNodeSelection(paragraphPos)
-              .updateAttributes('paragraph', { isPreviewText: true })
-              .run()
-
-            foundParagraph = true
-            break
-          }
-          depth--
-        }
-
-        if (!foundParagraph) {
-          // 备选方法：设置从当前位置开始的段落
-          console.log('未找到段落节点，尝试备选方法')
-          editor.value
-            .chain()
-            .setNodeSelection(pos)
+            .setNodeSelection(paragraphPos)
             .updateAttributes('paragraph', { isPreviewText: true })
             .run()
+
+          foundParagraph = true
+          break
         }
-      } catch (e) {
-        console.error('设置预览段落时出错:', e)
+        depth--
       }
 
-      // 显示成功提示
-      successMessage.value = '已设置预览文本'
-      showSuccessToast.value = true
-      setTimeout(() => {
-        showSuccessToast.value = false
-      }, 2000)
+      if (!foundParagraph) {
+        // 备选方法：设置从当前位置开始的段落
+        console.log('未找到段落节点，尝试备选方法')
+        editor.value
+          .chain()
+          .setNodeSelection(pos)
+          .updateAttributes('paragraph', { isPreviewText: true })
+          .run()
+      }
+    } catch (e) {
+      console.error('设置预览段落时出错:', e)
     }
+
+    // 显示成功提示
+    successMessage.value = '已设置预览文本'
+    showSuccessToast.value = true
+    setTimeout(() => {
+      showSuccessToast.value = false
+    }, 2000)
   }
 }
 
@@ -1259,6 +1327,18 @@ const insertBreak = (strength) => {
     })
     .run()
 }
+
+// 以编程方式聚焦编辑器
+const focusEditor = () => {
+  if (editor.value) {
+    editor.value.commands.focus()
+  }
+}
+
+// 暴露方法给父组件
+defineExpose({
+  focusEditor,
+})
 </script>
 
 <style scoped>
@@ -1282,6 +1362,19 @@ const insertBreak = (strength) => {
   padding: 1rem;
   margin-bottom: 1rem;
   min-height: 200px;
+}
+
+/* Placeholder styles */
+.editor-content :deep(.is-editor-empty) {
+  min-height: 100px;
+}
+
+.editor-content :deep(.is-empty:first-child::before) {
+  content: attr(data-placeholder);
+  float: left;
+  color: #adb5bd;
+  pointer-events: none;
+  height: 0;
 }
 
 /* Visualization of SSML attributes in the editor */
@@ -1316,6 +1409,13 @@ const insertBreak = (strength) => {
 }
 
 /* Set preview button - shown on hover for paragraphs that aren't previews */
+.editor-content :deep(p.empty-paragraph)::before {
+  display: none !important;
+}
+.editor-content :deep(p.is-empty)::before {
+  display: none !important;
+}
+
 .editor-content :deep(p:not([data-preview-text])):hover::before {
   content: '';
   position: absolute;
@@ -1361,6 +1461,10 @@ const insertBreak = (strength) => {
 }
 
 /* Clear preview button - always shown for preview paragraphs */
+.editor-content :deep(p[data-preview-text].empty-paragraph)::before {
+  display: none !important;
+}
+
 .editor-content :deep(p[data-preview-text])::before {
   content: '';
   position: absolute;

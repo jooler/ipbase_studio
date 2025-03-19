@@ -90,6 +90,17 @@ export default defineConfig((ctx) => {
           },
           { server: false },
         ],
+        // [
+        //   'vite-plugin-vue-mcp',
+        //   {
+        //     VueMcp: {
+        //       host: 'localhost',
+        //       port: 3000,
+        //       printUrls: true,
+        //     },
+        //   },
+        //   { server: false },
+        // ],
       ],
     },
 

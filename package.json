@@ -21,6 +21,7 @@
     "@tiptap/extension-document": "^2.11.5",
     "@tiptap/extension-history": "^2.11.5",
     "@tiptap/extension-paragraph": "^2.11.5",
+    "@tiptap/extension-placeholder": "^2.11.5",
     "@tiptap/extension-text": "^2.11.5",
     "@tiptap/vue-3": "^2.11.5",
     "@vueuse/core": "^13.0.0",
@@ -49,7 +50,8 @@
     "globals": "^15.12.0",
     "postcss": "^8.4.14",
     "prettier": "^3.3.3",
-    "vite-plugin-checker": "^0.9.0"
+    "vite-plugin-checker": "^0.9.0",
+    "vite-plugin-vue-mcp": "^0.2.2"
   },
   "engines": {
     "node": "^28 || ^26 || ^24 || ^22 || ^20 || ^18",
