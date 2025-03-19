@@ -29,8 +29,6 @@
     "electron-store": "^10.0.1",
     "localforage": "^1.10.0",
     "microsoft-cognitiveservices-speech-sdk": "^1.42.0",
-    "monaco-editor": "^0.52.2",
-    "monaco-editor-vue3": "^0.1.10",
     "pinia": "^3.0.1",
     "quasar": "^2.16.0",
     "tippy.js": "^6.3.7",

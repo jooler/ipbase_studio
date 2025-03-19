@@ -3,6 +3,7 @@
 
 import { defineConfig } from '#q-app/wrappers'
 import { fileURLToPath } from 'node:url'
+import { VueMcp } from 'vite-plugin-vue-mcp'
 // import { loadEnv } from 'vite'
 
 export default defineConfig((ctx) => {
@@ -90,17 +91,15 @@ export default defineConfig((ctx) => {
           },
           { server: false },
         ],
-        // [
-        //   'vite-plugin-vue-mcp',
-        //   {
-        //     VueMcp: {
-        //       host: 'localhost',
-        //       port: 3000,
-        //       printUrls: true,
-        //     },
-        //   },
-        //   { server: false },
-        // ],
+
+        [
+          VueMcp,
+          {
+            host: 'localhost',
+            port: 3039,
+            printUrls: true,
+          },
+        ],
       ],
     },
 
@@ -108,6 +107,14 @@ export default defineConfig((ctx) => {
     devServer: {
       // https: true,
       open: true, // opens browser window automatically
+      port: 9000,
+      proxy: {
+        '/__mcp': {
+          target: 'http://localhost:3039',
+          changeOrigin: true,
+          ws: true,
+        },
+      },
     },
 
     // https://v2.quasar.dev/quasar-cli-vite/quasar-config-file#framework

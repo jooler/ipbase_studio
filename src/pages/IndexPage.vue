@@ -47,7 +47,7 @@
 
         <q-scroll-area
           ref="voiceScrollArea"
-          v-if="selectedLocale"
+          v-if="selectedLocale && voiceOptions.length > 0"
           class="q-mt-md"
           style="height: 500px; width: 100%"
         >
@@ -58,13 +58,14 @@
                 bordered
                 flat
                 class="hovered-item"
-                :class="{ 'border-primary': selectedVoice?.value === i.value }"
+                :class="{ 'border-orange': selectedVoice?.value === i.value }"
               >
-                <div class="cursor-pointer column flex-center q-py-md" @click="selectedVoice = i">
-                  <q-avatar>
-                    {{ i.Gender === 'Female' ? '女' : '男' }}
-                  </q-avatar>
-                  <span class="q-py-sm">{{ i.DisplayName }}</span>
+                <div
+                  class="cursor-pointer column flex-center q-py-xl"
+                  :style="`background-image: url(${postImage(i)});background-size: cover;`"
+                  @click="selectedVoice = i"
+                >
+                  <div class="q-py-xl" />
                   <q-tooltip class="no-padding transparent">
                     <q-card bordered>
                       <q-card-section
@@ -77,6 +78,9 @@
                   </q-tooltip>
                 </div>
                 <q-card-section class="row no-wrap items-center q-pa-sm border-top">
+                  <span class="q-py-sm">{{ i.DisplayName }}</span>
+                </q-card-section>
+                <q-card-section class="row no-wrap items-center q-px-sm q-pt-none q-pb-sm">
                   <q-btn
                     dense
                     size="sm"
@@ -90,7 +94,6 @@
                       getPlayIcon(i.value) === 'mdi-play' ? '预览语音' : '暂停预览'
                     }}</q-tooltip>
                   </q-btn>
-                  <q-space />
                   <q-btn
                     dense
                     flat
@@ -229,6 +232,14 @@ const {
   saveConfig,
   restoreConfig,
 } = useTts()
+
+const postImage = (i) => {
+  if (selectedLocale.value?.value === 'zh-cn') {
+    return `public/images/${i.ShortName}.webp`
+  } else {
+    return `public/images/${i.Gender}.png`
+  }
+}
 
 // 滚动到选中的语音卡片
 const scrollToSelectedVoice = async () => {

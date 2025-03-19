@@ -1,4 +1,4 @@
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
 import { useSpeechSynthesis } from './SpeechSynthesis'
 import localeMappings from '../../localeMappings.js'
 import localforage from 'localforage'
@@ -27,7 +27,7 @@ export function useTts() {
   // Configuration
   const selectedLocale = ref('')
   const selectedVoice = ref()
-  const voiceOptions = ref([])
+  // const voiceOptions = ref([])
   const voiceList = ref([])
   const volume = ref(100)
   const useCustomEndpoint = ref(false)
@@ -163,10 +163,9 @@ export function useTts() {
     }
   }
 
-  // Watch for locale changes to update voice options
-  watch(selectedLocale, (newLocale) => {
-    const filtered = filterByLocale(voiceList.value, newLocale)
-    voiceOptions.value = filtered.map((voice) => {
+  const voiceOptions = computed(() => {
+    const filtered = filterByLocale(voiceList.value, selectedLocale.value)
+    return filtered.map((voice) => {
       return {
         label: `${voice.DisplayName} - ${voice.Gender === 'Male' ? '男声' : '女声'}`,
         value: voice.ShortName,
