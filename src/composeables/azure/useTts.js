@@ -21,6 +21,7 @@ export function useTts() {
   // Text input
   const textToConvert = ref('')
   const ssmlContent = ref('')
+  const jsonContent = ref(null) // Store editor's JSON content
   const isConverting = ref(false)
   const audioUrl = ref('')
 
@@ -246,6 +247,7 @@ export function useTts() {
 
   // Azure text-to-speech function
   const convertToSpeech = async () => {
+    console.log('ssmlContent.value', ssmlContent.value)
     if (!ssmlContent.value || !apiKey) {
       alert('请输入文本和API密钥')
       return
@@ -556,6 +558,7 @@ export function useTts() {
     // State
     textToConvert,
     ssmlContent,
+    jsonContent,
     isConverting,
     audioUrl,
     selectedLocale,

@@ -9,7 +9,7 @@
         class="bubble-menu transparent"
         :should-show="shouldShowBubbleMenu"
       >
-        <q-card bordered>
+        <q-card bordered :class="{ 'radius-sm': !hasTextSelection }">
           <q-toolbar v-if="hasTextSelection" class="transparent row gap-xs q-px-xs">
             <q-select
               v-model="selectionVoice"
@@ -67,69 +67,59 @@
                 <q-tooltip>设为预览文本</q-tooltip>
               </q-btn>
             </template>
-            <q-btn v-if="!hasTextSelection" flat icon="pause">
-              <q-menu>
-                <q-list bordered dense class="radius-sm q-pa-xs column gap-xs">
-                  <q-item
-                    clickable
-                    v-close-popup
-                    class="radius-xs"
-                    @click="insertOrUpdateBreak('none')"
-                  >
-                    <q-item-section>无停顿</q-item-section>
-                  </q-item>
-                  <q-item
-                    clickable
-                    v-close-popup
-                    class="radius-xs"
-                    @click="insertOrUpdateBreak('x-weak')"
-                  >
-                    <q-item-section>微弱停顿</q-item-section>
-                  </q-item>
-                  <q-item
-                    clickable
-                    v-close-popup
-                    class="radius-xs"
-                    @click="insertOrUpdateBreak('weak')"
-                  >
-                    <q-item-section>轻微停顿</q-item-section>
-                  </q-item>
-                  <q-item
-                    clickable
-                    v-close-popup
-                    class="radius-xs"
-                    @click="insertOrUpdateBreak('medium')"
-                  >
-                    <q-item-section>中等停顿</q-item-section>
-                  </q-item>
-                  <q-item
-                    clickable
-                    v-close-popup
-                    class="radius-xs"
-                    @click="insertOrUpdateBreak('strong')"
-                  >
-                    <q-item-section>强停顿</q-item-section>
-                  </q-item>
-                  <q-item
-                    clickable
-                    v-close-popup
-                    class="radius-xs"
-                    @click="insertOrUpdateBreak('x-strong')"
-                  >
-                    <q-item-section>超强停顿</q-item-section>
-                  </q-item>
-                  <q-item
-                    v-if="isEditingBreak"
-                    clickable
-                    v-close-popup
-                    class="radius-xs"
-                    @click="removeBreak"
-                  >
-                    <q-item-section class="text-negative">删除停顿</q-item-section>
-                  </q-item>
-                </q-list>
-              </q-menu>
-            </q-btn>
+            <q-list v-if="!hasTextSelection" dense class="column gap-xs">
+              <q-item
+                clickable
+                class="radius-xs"
+                :class="{ 'bg-primary text-white': currentBreakStrength === 'none' }"
+                @click="insertOrUpdateBreak('none')"
+              >
+                <q-item-section>无停顿</q-item-section>
+              </q-item>
+              <q-item
+                clickable
+                class="radius-xs"
+                :class="{ 'bg-primary text-white': currentBreakStrength === 'x-weak' }"
+                @click="insertOrUpdateBreak('x-weak')"
+              >
+                <q-item-section>微弱停顿</q-item-section>
+              </q-item>
+              <q-item
+                clickable
+                class="radius-xs"
+                :class="{ 'bg-primary text-white': currentBreakStrength === 'weak' }"
+                @click="insertOrUpdateBreak('weak')"
+              >
+                <q-item-section>轻微停顿</q-item-section>
+              </q-item>
+              <q-item
+                clickable
+                class="radius-xs"
+                :class="{ 'bg-primary text-white': currentBreakStrength === 'medium' }"
+                @click="insertOrUpdateBreak('medium')"
+              >
+                <q-item-section>中等停顿</q-item-section>
+              </q-item>
+              <q-item
+                clickable
+                class="radius-xs"
+                :class="{ 'bg-primary text-white': currentBreakStrength === 'strong' }"
+                @click="insertOrUpdateBreak('strong')"
+              >
+                <q-item-section>强停顿</q-item-section>
+              </q-item>
+              <q-item
+                clickable
+                class="radius-xs"
+                :class="{ 'bg-primary text-white': currentBreakStrength === 'x-strong' }"
+                @click="insertOrUpdateBreak('x-strong')"
+              >
+                <q-item-section>超强停顿</q-item-section>
+              </q-item>
+              <q-item v-if="isEditingBreak" clickable class="radius-xs" @click="removeBreak">
+                <q-item-section class="text-negative">删除停顿</q-item-section>
+              </q-item>
+            </q-list>
             <q-btn
               v-if="hasTextSelection"
               color="negative"
@@ -203,7 +193,7 @@ import { useTts } from '../composeables/azure/useTts'
 
 const props = defineProps({
   modelValue: {
-    type: String,
+    type: [String, Object],
     default: '',
   },
   selectedVoiceInitial: {
@@ -237,17 +227,17 @@ const props = defineProps({
 })
 
 const emit = defineEmits([
-  'update:modelValue',
-  'ssml-change',
   'update:selectedVoice',
   'update:selectedLocale',
   'update:rate',
   'update:pitch',
   'update:volume',
+  'saveContent',
 ])
 
 // Get data from useTts
-const { voiceList, initVoices, setCustomPreviewText, customPreviewText } = useTts()
+const { voiceList, initVoices, setCustomPreviewText, customPreviewText, ssmlContent, jsonContent } =
+  useTts()
 
 // Initialize voices
 initVoices()
@@ -613,7 +603,7 @@ const EmptyParagraphDetector = Extension.create({
 
 // Initialize editor
 const editor = useEditor({
-  content: props.modelValue,
+  content: props.modelValue || jsonContent.value || '',
   extensions: [
     Document,
     SsmlParagraph,
@@ -638,18 +628,55 @@ const editor = useEditor({
   onSelectionUpdate: ({ editor }) => {
     updateSelectionAttributes(editor)
   },
+  onCreate: ({ editor }) => {
+    syncSsml(editor)
+  },
   onUpdate: ({ editor }) => {
-    // Update model value with HTML content
-    emit('update:modelValue', editor.getHTML())
-
-    // Convert to SSML
-    const json = editor.state.doc.toJSON()
-    const ssml = convertToSsml(json)
-    ssmlOutput.value = ssml // 更新本地输出
-    ssmlContent.value = ssml // 更新将发送给API的内容
-    emit('ssml-change', ssml)
+    syncSsml(editor)
+    emit('saveContent', editor.getJSON())
   },
 })
+
+const syncSsml = (editor) => {
+  // Get editor content as JSON
+  const editorJson = editor.getJSON()
+
+  // Convert to SSML for API
+  const ssml = convertToSsml(editorJson)
+  ssmlOutput.value = ssml // 更新本地输出
+  ssmlContent.value = ssml // 更新将发送给API的内容
+}
+
+// Watch for model changes from outside the component
+watch(
+  () => props.modelValue,
+  (newValue) => {
+    // Skip if editor not initialized or if this update came from us
+    if (!editor.value || !newValue) return
+
+    // Update editor content
+    editor.value.commands.setContent(newValue)
+
+    // Also update jsonContent in useTts
+    jsonContent.value = newValue
+  },
+  { deep: true },
+)
+
+// Also watch jsonContent from useTts for changes
+watch(
+  () => jsonContent.value,
+  (newValue) => {
+    if (!editor.value || !newValue) return
+
+    // Check if content actually changed to avoid loops
+    const currentContent = editor.value.getJSON()
+    if (JSON.stringify(currentContent) !== JSON.stringify(newValue)) {
+      editor.value.commands.setContent(newValue)
+    }
+  },
+  { deep: true },
+)
 
 // Update attribute controls based on current selection
 const updateSelectionAttributes = (editor) => {
@@ -659,6 +686,12 @@ const updateSelectionAttributes = (editor) => {
     // 当没有选择时，不要重置activeControl
     return
   }
+
+  // 如果是编辑停顿模式，不改变选择属性
+  if (isEditingBreak.value) return
+
+  // 确保在普通文本选择时重置节点选择状态
+  isNodeSelection.value = false
 
   // Check if the ssml mark is active
   if (editor.isActive('ssml')) {
@@ -946,22 +979,11 @@ const convertToSsml = (json) => {
 
 // SSML output
 const ssmlOutput = ref('')
-// 添加本地ssmlContent以避免混淆
-const ssmlContent = ref('')
 
 // Expose data for parent components
 watch(
   [selectedLocale, selectedVoice, globalRate, globalPitch, globalVolume],
   ([newLocale, newVoice, newRate, newPitch, newVolume]) => {
-    if (editor.value) {
-      // Update content to trigger SSML conversion
-      const json = editor.value.state.doc.toJSON()
-      const ssml = convertToSsml(json)
-      ssmlOutput.value = ssml
-      ssmlContent.value = ssml // 同时更新本地值
-      emit('ssml-change', ssml)
-    }
-
     // Emit global setting changes to parent
     if (newLocale) emit('update:selectedLocale', newLocale)
     if (newVoice) emit('update:selectedVoice', newVoice)
@@ -1033,19 +1055,27 @@ onBeforeUnmount(() => {
   }
 })
 
-// 添加一个计算属性，用于判断是否有文本被选中
-const hasTextSelection = computed(() => {
-  if (!editor.value) return false
-  const { from, to } = editor.value.state.selection
-  return from !== to
-})
-
 // 添加一个变量跟踪是否在编辑停顿
 const isEditingBreak = ref(false)
+// 添加一个变量用于区分节点选择和文本选择
+const isNodeSelection = ref(false)
+// 添加一个变量记录当前编辑的停顿强度
+const currentBreakStrength = ref(null)
 
 // 添加显示成功提示的状态
 const showSuccessToast = ref(false)
 const successMessage = ref('')
+
+// 添加一个计算属性，用于判断是否有文本被选中
+const hasTextSelection = computed(() => {
+  if (!editor.value) return false
+
+  // 如果是节点选择模式（如停顿编辑），则返回false
+  if (isNodeSelection.value) return false
+
+  const { from, to } = editor.value.state.selection
+  return from !== to
+})
 
 // 设置选中的文本作为预览文本
 const setSelectedTextAsPreview = () => {
@@ -1129,14 +1159,17 @@ const setPreviewTextFromParagraph = (event) => {
   const rect = event.target.getBoundingClientRect()
   const offsetX = event.clientX - rect.left
 
-  // 只处理左侧30px的点击
-  if (offsetX > 30) return
-
-  if (!editor.value) return
-
   // 查找点击的段落
   const element = event.target.closest('p')
   if (!element) return
+
+  // 检查是否点击了设置/清理预览文本的图标区域（左侧24px）
+  if (offsetX > 24) return
+
+  // 如果是点击了停顿图标，不触发预览文本设置功能
+  if (event.target.closest('.ssml-break') || event.target.closest('[data-break-edit]')) return
+
+  if (!editor.value) return
 
   // 检查段落是否有文本内容
   const paragraphText = element.textContent.trim()
@@ -1214,34 +1247,6 @@ const setPreviewTextFromParagraph = (event) => {
   }
 }
 
-// 在编辑器初始化后添加行点击事件
-onMounted(() => {
-  if (editor.value) {
-    // 使用事件委托为编辑器内的段落添加点击事件
-    const editorElement = document.querySelector('.editor-content')
-    if (editorElement) {
-      editorElement.addEventListener('click', (event) => {
-        // 处理段落预览按钮点击
-        if (event.target.closest('p')) {
-          setPreviewTextFromParagraph(event)
-        }
-
-        // 检查点击的是否是停顿图标
-        if (event.target.closest('.ssml-break') || event.target.closest('[data-break-edit]')) {
-          isEditingBreak.value = true
-          activeControl.value = 'break'
-
-          // 需要聚焦编辑器，否则浮动菜单不会显示
-          editor.value.commands.focus()
-        } else {
-          // 如果点击的不是停顿图标，则退出停顿编辑模式
-          isEditingBreak.value = false
-        }
-      })
-    }
-  }
-})
-
 // 自定义浮动菜单显示逻辑
 const shouldShowBubbleMenu = ({ editor }) => {
   // 如果没有焦点或者不是停顿编辑模式，不显示
@@ -1271,30 +1276,39 @@ const shouldShowBubbleMenu = ({ editor }) => {
 const insertOrUpdateBreak = (strength) => {
   if (!editor.value) return
 
-  if (isEditingBreak.value) {
-    // 获取当前编辑的停顿节点
-    const node = editor.value.state.selection.node
+  // 获取当前编辑器选中内容
+  const { selection } = editor.value.state
+  const selectedNode = selection.node
 
-    if (node && node.type.name === 'ssmlBreak') {
-      // 更新现有停顿节点的强度
-      editor.value
-        .chain()
-        .focus()
-        .updateAttributes('ssmlBreak', {
-          strength,
-        })
-        .run()
-    } else {
-      // 如果没有选中节点，则插入新的停顿
-      insertBreak(strength)
-    }
-
-    // 完成编辑后，退出停顿编辑模式
-    isEditingBreak.value = false
+  // 检查是否有选中节点且是停顿节点
+  if (isEditingBreak.value && selectedNode && selectedNode.type.name === 'ssmlBreak') {
+    // 更新现有停顿节点的强度
+    editor.value
+      .chain()
+      .focus()
+      .updateAttributes('ssmlBreak', {
+        strength,
+      })
+      .run()
   } else {
-    // 正常插入新的停顿
-    insertBreak(strength)
+    // 没有选中停顿节点或不在编辑停顿模式，插入新的停顿
+    currentBreakStrength.value = null // 重置为默认值
+    editor.value
+      .chain()
+      .focus()
+      .insertContent({
+        type: 'ssmlBreak',
+        attrs: {
+          strength,
+        },
+      })
+      .run()
   }
+
+  // 完成编辑后重置状态
+  isEditingBreak.value = false
+  isNodeSelection.value = false
+  currentBreakStrength.value = null // 重置为默认值
 }
 
 // 删除停顿函数
@@ -1309,23 +1323,8 @@ const removeBreak = () => {
 
   // 完成编辑后，退出停顿编辑模式
   isEditingBreak.value = false
-}
-
-// 插入停顿函数
-const insertBreak = (strength) => {
-  if (!editor.value) return
-
-  // 使用自定义节点插入停顿标记
-  editor.value
-    .chain()
-    .focus()
-    .insertContent({
-      type: 'ssmlBreak',
-      attrs: {
-        strength,
-      },
-    })
-    .run()
+  isNodeSelection.value = false
+  currentBreakStrength.value = null // 重置为默认值
 }
 
 // 以编程方式聚焦编辑器
@@ -1338,6 +1337,64 @@ const focusEditor = () => {
 // 暴露方法给父组件
 defineExpose({
   focusEditor,
+})
+
+// 在编辑器初始化后添加行点击事件
+onMounted(() => {
+  if (editor.value) {
+    // 使用事件委托为编辑器内的段落添加点击事件
+    const editorElement = document.querySelector('.editor-content')
+    if (editorElement) {
+      editorElement.addEventListener('click', (event) => {
+        // 处理段落预览按钮点击
+        if (event.target.closest('p')) {
+          setPreviewTextFromParagraph(event)
+        }
+
+        // 检查点击的是否是停顿图标
+        const breakElement =
+          event.target.closest('.ssml-break') || event.target.closest('[data-break-edit]')
+        if (breakElement) {
+          isEditingBreak.value = true
+          isNodeSelection.value = true // 标记为节点选择模式
+          activeControl.value = 'break'
+
+          // 需要聚焦编辑器并选中整个停顿节点
+          if (editor.value) {
+            try {
+              // 获取停顿节点的DOM位置
+              const pos = editor.value.view.posAtDOM(breakElement, 0)
+
+              // 在位置处找到停顿节点
+              let found = false
+              editor.value.state.doc.nodesBetween(
+                pos,
+                pos + breakElement.textContent.length + 1,
+                (node, nodePos) => {
+                  if (!found && node.type.name === 'ssmlBreak') {
+                    // 记录当前停顿强度
+                    currentBreakStrength.value = node.attrs.strength
+
+                    // 选中整个停顿节点
+                    editor.value.chain().focus().setNodeSelection(nodePos).run()
+                    found = true
+                    return false // 停止遍历
+                  }
+                  return true
+                },
+              )
+            } catch (e) {
+              console.error('选中停顿节点时出错:', e)
+            }
+          }
+        } else {
+          // 如果点击的不是停顿图标，则退出停顿编辑模式
+          isEditingBreak.value = false
+          isNodeSelection.value = false // 重置节点选择状态
+        }
+      })
+    }
+  }
 })
 </script>
 

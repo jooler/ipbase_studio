@@ -1,11 +1,23 @@
 <template>
   <MainContainer>
     <template #leftDrawerContent>
-      <div>selectedLocale: {{ selectedLocale }}</div>
+      <ProjectManager ref="projectManager" @open-file="handleOpenFile" />
     </template>
     <template #mainContent>
       <q-card flat square class="absolute-full column">
         <q-card-actions align="right" class="border-bottom">
+          <q-input
+            v-if="currentFile"
+            v-model="currentFile.name"
+            dense
+            outlined
+            color="primary"
+            class="q-mr-md"
+            style="max-width: 200px"
+            @update:model-value="updateFileName"
+          />
+          currentOpenFile: {{ currentOpenFile }}
+          <q-space />
           <q-btn
             color="primary"
             unelevated
@@ -16,8 +28,10 @@
             :disable="!ssmlContent"
           />
         </q-card-actions>
+
         <tiptap-ssml
-          v-model="ssmlContent"
+          :key="currentFile?.id"
+          v-model="jsonContent"
           :selected-voice-initial="selectedVoice"
           :selected-locale-initial="selectedLocale"
           :rate-initial="selectedRateValue"
@@ -28,7 +42,7 @@
           @update:rate="selectedRateValue = $event"
           @update:pitch="selectedPitchValue = $event"
           @update:volume="volume = $event"
-          @ssml-change="onSsmlChange"
+          @saveContent="saveCurrentFile"
           class="q-space"
         />
       </q-card>
@@ -202,13 +216,22 @@ import { onMounted, watch, nextTick, ref } from 'vue'
 import WaveSurfer from 'src/components/WaveSurfer.vue'
 import TiptapSsml from 'src/components/TiptapSsml.vue'
 import { useTts } from '../composeables/azure/useTts'
+import ProjectManager from 'src/components/ProjectManager.vue'
+import { useProjectManager } from '../composeables/project/useProjectManager'
+// import { Notify } from 'quasar'
 
-// Ref for scroll area
+const { currentOpenFile } = useProjectManager()
+// Ref for scroll area and project manager
 const voiceScrollArea = ref(null)
+const projectManager = ref(null)
+
+// Current open file
+const currentFile = ref(null)
 
 // Use the TTS composable
 const {
   ssmlContent,
+  jsonContent,
   isConverting,
   audioUrl,
   selectedLocale,
@@ -233,11 +256,77 @@ const {
   restoreConfig,
 } = useTts()
 
+// Add updateFileName method to handle file name changes
+const updateFileName = async (newName) => {
+  if (!currentFile.value || !projectManager.value) return
+
+  try {
+    // Call the updateNodeName method in ProjectManager component
+    const success = await projectManager.value.updateNodeName(currentFile.value.id, newName)
+
+    if (success) {
+      console.log('File name updated:', newName)
+      // Update currentOpenFile reference
+      if (currentOpenFile.value && currentOpenFile.value.id === currentFile.value.id) {
+        currentOpenFile.value.name = newName
+      }
+    } else {
+      console.error('Failed to update file name')
+    }
+  } catch (error) {
+    console.error('Error updating file name:', error)
+  }
+}
+
 const postImage = (i) => {
   if (selectedLocale.value?.value === 'zh-cn') {
     return `public/images/${i.ShortName}.webp`
   } else {
     return `public/images/${i.Gender}.png`
+  }
+}
+
+// Handle file open event from ProjectManager
+const handleOpenFile = (fileInfo) => {
+  currentFile.value = {
+    id: fileInfo.id,
+    name: fileInfo.name,
+  }
+
+  try {
+    // Parse the saved content as JSON
+    // If it's not valid JSON (old format or new file), use empty object
+    const editorContent = fileInfo.content ? JSON.parse(fileInfo.content) : {}
+
+    // Set the editor content using jsonContent from useTts
+    jsonContent.value = editorContent
+  } catch (error) {
+    console.error('Error parsing file content as JSON:', error)
+    // Fallback: if content is not JSON, try to use it as is
+    jsonContent.value = null
+    ssmlContent.value = fileInfo.content || ''
+  }
+}
+
+// Save current file content
+const saveCurrentFile = async (val) => {
+  if (!currentFile.value || !projectManager.value) {
+    console.log('No file is currently open')
+    return
+  }
+
+  try {
+    // Save the editor's JSON content as a string
+    const fileContent = JSON.stringify(val)
+    const success = await projectManager.value.saveCurrentFile(fileContent)
+
+    if (success) {
+      console.log('Saved file: ', currentFile.value.name)
+    } else {
+      console.log('Failed to save file')
+    }
+  } catch (error) {
+    console.error('Error saving file:', error)
   }
 }
 
@@ -276,11 +365,6 @@ const scrollToSelectedVoice = async () => {
 watch([selectedLocale, selectedVoice, selectedRateValue, selectedPitchValue, volume], () => {
   saveConfig()
 })
-
-// Handle SSML content updates from TiptapSsml
-const onSsmlChange = (value) => {
-  ssmlContent.value = value
-}
 
 // Add watch to debug customPreviewText changes
 watch(customPreviewText, (newVal) => {
@@ -326,5 +410,13 @@ onMounted(async () => {
   background-color: rgba(76, 175, 80, 0.1);
   border-radius: 4px;
   border-left: 3px solid #4caf50;
+}
+
+.border-orange {
+  border: 2px solid #ff9800 !important;
+}
+
+.border-bottom {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.12);
 }
 </style>
