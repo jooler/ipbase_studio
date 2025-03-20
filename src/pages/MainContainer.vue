@@ -1,8 +1,11 @@
 <template>
   <q-page>
     <q-layout view="lHr LpR lFr" container class="absolute-full">
-      <q-header class="transparent border-bottom">
-        <q-toolbar :class="$q.dark.mode ? 'bg-dark text-grey-1' : 'bg-white text-grey-10'">
+      <q-header class="transparent">
+        <q-toolbar
+          class="border-bottom"
+          :class="$q.dark.mode ? 'bg-grey-10 text-grey-1' : 'bg-white text-grey-10'"
+        >
           <q-btn dense flat round icon="mdi-file-tree" class="q-mr-md" @click="toggleLeftDrawer" />
           <slot name="headerLeft"></slot>
           <q-space />
@@ -11,7 +14,13 @@
         </q-toolbar>
       </q-header>
 
-      <q-drawer v-model="leftDrawerOpen" side="left" bordered :width="leftDrawerWidth">
+      <q-drawer
+        v-model="leftDrawerOpen"
+        side="left"
+        class="border-right"
+        :width="leftDrawerWidth"
+        :class="$q.dark.mode ? 'bg-grey-10 text-grey-1' : 'bg-primary-9 text-grey-1'"
+      >
         <slot name="leftDrawerContent"></slot>
         <div
           ref="leftResizeHandle"
@@ -20,7 +29,12 @@
         ></div>
       </q-drawer>
 
-      <q-drawer v-model="rightDrawerOpen" side="right" bordered :width="rightDrawerWidth">
+      <q-drawer
+        v-model="rightDrawerOpen"
+        side="right"
+        class="border-left"
+        :width="rightDrawerWidth"
+      >
         <slot name="rightDrawerContent"></slot>
         <div
           ref="rightResizeHandle"
@@ -29,7 +43,7 @@
         ></div>
       </q-drawer>
 
-      <q-page-container>
+      <q-page-container :class="$q.dark.mode ? 'bg-dark' : 'bg-grey-1'">
         <q-page>
           <slot name="mainContent"></slot>
         </q-page>

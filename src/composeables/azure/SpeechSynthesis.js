@@ -1,4 +1,8 @@
 import localforage from 'localforage'
+import { appStore } from 'src/stores/stores'
+import { computed } from 'vue'
+const apiKey = computed(() => appStore.settings?.azureTtsKey)
+const region = computed(() => appStore.settings?.azureTtsRegion)
 /**
  * 创建一个封装Azure语音合成功能的可复用hook
  * @param {Object} options 语音合成配置选项
@@ -7,8 +11,8 @@ import localforage from 'localforage'
 export function useSpeechSynthesis(options = {}) {
   // 默认配置与用户配置合并
   const config = {
-    speechKey: options.speechKey || '',
-    speechRegion: options.speechRegion || 'eastasia',
+    speechKey: apiKey.value || '',
+    speechRegion: region.value || 'eastasia',
     speechVoiceName: options.speechVoiceName || 'zh-CN-XiaoxiaoNeural',
     useCustomEndpoint: options.useCustomEndpoint || false,
     customEndpoint: options.customEndpoint || '',
@@ -16,6 +20,9 @@ export function useSpeechSynthesis(options = {}) {
   }
 
   const fetchVoiceList = async () => {
+    if (!config.speechKey) {
+      config.speechKey = appStore.settings?.azureTtsKey
+    }
     if (!config.speechKey) {
       throw new Error('语音服务密钥未提供')
     }

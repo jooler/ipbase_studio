@@ -13,26 +13,30 @@
       />
     </template>
     <template #headerRight>
+      <q-chip
+        v-if="!canConvert"
+        square
+        flat
+        label="请先设置语言、角色等"
+        class="text-deep-orange"
+      />
       <q-btn
+        v-else
         color="primary"
         unelevated
-        padding="xs md"
-        label="转换为语音"
+        padding="xs md xs sm"
+        icon="graphic_eq"
+        :label="isConverting ? '' : '转换为语音'"
         @click="convertToSpeech"
         :loading="isConverting"
-        :disable="!ssmlContent"
+        :disable="!canConvert || !ssmlContent || !hasContent"
       />
     </template>
     <template #leftDrawerContent>
       <ProjectManager ref="projectManager" class="q-pa-sm" @open-file="handleOpenFile" />
     </template>
     <template #mainContent>
-      <q-card
-        flat
-        square
-        class="absolute-full column"
-        :class="$q.dark.mode ? 'bg-grey-10' : 'bg-grey-1'"
-      >
+      <div class="absolute-full column">
         <tiptap-ssml
           :key="currentFile?.id"
           v-model="jsonContent"
@@ -47,13 +51,23 @@
           @update:pitch="selectedPitchValue = $event"
           @update:volume="volume = $event"
           @saveContent="saveCurrentFile"
+          @isEmptyString="isEmptyString"
           class="q-space"
         />
-      </q-card>
+      </div>
     </template>
     <template #rightDrawerContent>
       <div class="config-container q-pa-md">
-        <q-select v-model="selectedLocale" :options="locales" label="语言" filled class="q-mb-md" />
+        <q-select
+          v-model="selectedLocale"
+          :options="locales"
+          dense
+          label="语言"
+          filled
+          class="q-mb-md radius-xs overflow-hidden"
+          popup-content-class="radius-xs border z-max q-pa-xs"
+          popup-content-style="transform: translateY(4px)"
+        />
 
         <!-- 添加预览文本提示 -->
         <div v-if="customPreviewText" class="custom-preview-text q-mb-md q-pa-sm">
@@ -76,7 +90,7 @@
                 bordered
                 flat
                 class="hovered-item"
-                :class="{ 'border-orange': selectedVoice?.value === i.value }"
+                :class="{ 'border-deep-orange bg-deep-orange': selectedVoice?.value === i.value }"
               >
                 <div
                   class="cursor-pointer column flex-center q-py-xl"
@@ -84,6 +98,9 @@
                   @click="selectedVoice = i"
                 >
                   <div class="q-py-xl" />
+                  <div v-if="i.value === showWave" class="absolute-full">
+                    <AudioWave class="fit" style="background-color: #00000088" />
+                  </div>
                   <q-tooltip class="no-padding transparent">
                     <q-card bordered>
                       <q-card-section
@@ -95,15 +112,14 @@
                     </q-card>
                   </q-tooltip>
                 </div>
-                <q-card-section class="row no-wrap items-center q-pa-sm border-top">
-                  <span class="q-py-sm">{{ i.DisplayName }}</span>
+                <q-card-section class="row no-wrap items-center q-py-xs q-px-sm border-top">
+                  <span class="q-py-xs">{{ reLocalName(i.LocalName) || i.DisplayName }}</span>
                 </q-card-section>
-                <q-card-section class="row no-wrap items-center q-px-sm q-pt-none q-pb-sm">
+                <q-card-section class="row no-wrap items-center q-px-xs q-pt-none q-pb-xs">
                   <q-btn
                     dense
                     size="sm"
                     flat
-                    color="primary"
                     :icon="getPlayIcon(i.value)"
                     @click.stop="previewVoice(i)"
                     :loading="previewingVoice === i.value"
@@ -112,13 +128,14 @@
                       getPlayIcon(i.value) === 'mdi-play' ? '预览语音' : '暂停预览'
                     }}</q-tooltip>
                   </q-btn>
+                  <q-space />
                   <q-btn
                     dense
                     flat
                     round
                     size="sm"
                     icon="mdi-star"
-                    :color="isFavorite(i.value) ? 'orange' : ''"
+                    :color="isFavorite(i.value) ? 'yellow' : ''"
                     @click.stop="toggleFavorite(i.value)"
                   >
                     <q-tooltip>{{ isFavorite(i.value) ? '取消收藏' : '收藏此语音' }}</q-tooltip>
@@ -184,44 +201,36 @@
       </div>
     </template>
     <template v-if="audioUrl" #footer>
-      <WaveSurfer :url="audioUrl">
-        <template #more>
-          <q-btn
-            flat
-            dense
-            round
-            icon="mdi-dots-vertical"
-            :color="$q.dark.mode ? 'grey-1' : 'grey-8'"
-          >
-            <q-menu class="radius-sm">
-              <q-list bordered dense class="radius-sm q-pa-xs">
-                <q-item
-                  clickable
-                  v-close-popup
-                  :href="audioUrl"
-                  target="_blank"
-                  download="speech.mp3"
-                  class="radius-xs"
-                >
-                  <q-item-section>下载音频</q-item-section>
-                </q-item>
-              </q-list>
-            </q-menu>
-          </q-btn>
-        </template>
-      </WaveSurfer>
+      <div class="q-pa-xs" :class="$q.dark.mode ? 'bg-black' : 'bg-white'">
+        <WaveSurfer :url="audioUrl">
+          <template #more>
+            <q-btn
+              flat
+              dense
+              rounded
+              padding="xs md"
+              icon="file_download"
+              :href="audioUrl"
+              :download="currentFile?.name ? `${currentFile.name}.mp3` : 'speech.mp3'"
+              label="下载音频"
+              :color="$q.dark.mode ? 'grey-1' : 'grey-8'"
+            />
+          </template>
+        </WaveSurfer>
+      </div>
     </template>
   </MainContainer>
 </template>
 
 <script setup>
 import MainContainer from './MainContainer.vue'
-import { onMounted, watch, nextTick, ref } from 'vue'
+import { onMounted, watch, nextTick, ref, computed } from 'vue'
 import WaveSurfer from 'src/components/WaveSurfer.vue'
 import TiptapSsml from 'src/components/TiptapSsml.vue'
 import { useTts } from '../composeables/azure/useTts'
 import ProjectManager from 'src/components/ProjectManager.vue'
 import { useProjectManager } from '../composeables/project/useProjectManager'
+import AudioWave from 'src/components/AudioWave.vue'
 // import { Notify } from 'quasar'
 
 const { currentOpenFile } = useProjectManager()
@@ -231,6 +240,7 @@ const projectManager = ref(null)
 
 // Current open file
 const currentFile = ref(null)
+const canConvert = computed(() => selectedLocale.value && selectedVoice.value)
 
 // Use the TTS composable
 const {
@@ -248,6 +258,7 @@ const {
   // 预览相关功能
   previewingVoice,
   previewVoice,
+  showWave,
   getPlayIcon,
   customPreviewText,
   // 收藏相关功能
@@ -282,11 +293,25 @@ const updateFileName = async (newName) => {
   }
 }
 
+const hasContent = ref(false)
+const isEmptyString = (isEmpty) => {
+  hasContent.value = !isEmpty
+}
+
 const postImage = (i) => {
   if (selectedLocale.value?.value === 'zh-cn') {
     return `public/images/${i.ShortName}.webp`
   } else {
     return `public/images/${i.Gender}.png`
+  }
+}
+const reLocalName = (localName) => {
+  if (localName === 'Yunfan Multilingual') {
+    return '云帆'
+  } else if (localName === 'Yunxiao Multilingual') {
+    return '云潇'
+  } else {
+    return localName
   }
 }
 
@@ -315,7 +340,6 @@ const handleOpenFile = (fileInfo) => {
 // Save current file content
 const saveCurrentFile = async (val) => {
   if (!currentFile.value || !projectManager.value) {
-    console.log('No file is currently open')
     return
   }
 

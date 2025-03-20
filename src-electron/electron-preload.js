@@ -29,6 +29,7 @@
  */
 import { contextBridge } from 'electron'
 import { BrowserWindow } from '@electron/remote'
+import path from 'path'
 
 contextBridge.exposeInMainWorld('windowAPI', {
   minimize() {
@@ -51,5 +52,16 @@ contextBridge.exposeInMainWorld('windowAPI', {
 
   close() {
     BrowserWindow.getFocusedWindow().close()
+  },
+})
+contextBridge.exposeInMainWorld('pathAPI', {
+  pathService(_path) {
+    let __path
+    if (process.env.DEV) {
+      __path = path.resolve(`public/${_path}`)
+    } else {
+      __path = path.join(process.resourcesPath, 'app.asar', _path)
+    }
+    return __path
   },
 })

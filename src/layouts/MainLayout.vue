@@ -1,27 +1,31 @@
 <template>
   <q-layout view="lHr LpR lFr">
-    <q-header bordered class="transparent">
+    <q-header class="transparent">
       <q-bar
-        :class="`${$q.dark.mode ? 'bg-dark text-grey-1' : 'bg-white text-grey-10'} ${
-          $q.platform.is.electron ? 'q-pr-sm' : ''
-        }`"
+        class="q-py-xs q-px-sm"
+        :class="$q.dark.mode ? 'bg-dark border-bottom text-white' : 'bg-primary-dark text-grey-1'"
+        style="height: 2.3rem"
       >
-        <span>声工坊</span>
-        <q-btn dense flat color="primary" icon="check" @click="$q.dark.toggle()" />
+        <span class="font-medium">{{ appStore.app?.name }}</span>
         <div
           class="q-space full-height"
           :class="$q.platform.is.electron ? 'q-electron-drag' : ''"
         ></div>
+        <q-btn dense flat icon="mdi-theme-light-dark" @click="$q.dark.toggle()" />
+        <q-btn dense flat icon="settings" @click="openSettings = !openSettings" />
         <AppControl v-if="$q.platform.is.electron" />
+        <q-dialog v-model="openSettings" persistent>
+          <AppSettings />
+        </q-dialog>
       </q-bar>
     </q-header>
 
     <q-drawer
       v-model="leftDrawerOpen"
       side="left"
-      bordered
       :width="64"
-      :class="$q.dark.mode ? 'bg-grey-10 text-grey-1' : 'bg-grey-1 text-grey-10'"
+      class="q-pa-sm border-right"
+      :class="$q.dark.mode ? 'bg-dark text-grey-1' : 'bg-primary-dark text-grey-1'"
     >
       <AppNavigation />
     </q-drawer>
@@ -30,18 +34,32 @@
       <!-- drawer content -->
     </q-drawer>
 
-    <q-page-container>
+    <q-page-container :class="$q.dark.mode ? 'bg-dark' : 'bg-primary-9'">
       <router-view />
     </q-page-container>
   </q-layout>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import AppNavigation from '../components/AppNavigation.vue'
 import AppControl from '../components/AppControl.vue'
+import localforage from 'localforage'
+import AppSettings from 'src/components/AppSettings.vue'
+import { appStore } from 'src/stores/stores'
+
 const leftDrawerOpen = ref(true)
 const rightDrawerOpen = ref(false)
+
+const openSettings = ref(false)
+onMounted(async () => {
+  appStore.settings.azureTtsKey = await localforage.getItem('azureTtsKey')
+  appStore.settings.azureTtsRegion =
+    (await localforage.getItem('azureTtsRegion')) || appStore.settings.azureTtsRegion
+  if (!appStore.settings.azureTtsKey || !appStore.settings.azureTtsRegion) {
+    openSettings.value = true
+  }
+})
 </script>
 
 <style>

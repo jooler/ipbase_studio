@@ -1,7 +1,15 @@
 <template>
-  <q-btn dense flat icon="minimize" @click="minimize" />
-  <q-btn dense flat :icon="isMaximized ? 'crop_din' : 'crop_square'" @click="toggleMaximize" />
-  <q-btn dense flat icon="close" @click="closeApp" />
+  <div class="row items-center gap-xs">
+    <q-btn dense size="sm" flat icon="minimize" @click="minimize" />
+    <q-btn
+      dense
+      size="sm"
+      flat
+      :icon="isMaximized ? 'mdi-window-restore' : 'crop_square'"
+      @click="toggleMaximize"
+    />
+    <q-btn dense size="sm" icon="close" color="red" @click="closeApp" />
+  </div>
 </template>
 
 <script setup>

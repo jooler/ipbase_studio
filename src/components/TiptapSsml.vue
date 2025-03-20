@@ -194,7 +194,7 @@ import { useTts } from '../composeables/azure/useTts'
 const props = defineProps({
   modelValue: {
     type: [String, Object],
-    default: '',
+    default: void 0,
   },
   selectedVoiceInitial: {
     type: Object,
@@ -233,14 +233,11 @@ const emit = defineEmits([
   'update:pitch',
   'update:volume',
   'saveContent',
+  'isEmptyString',
 ])
 
 // Get data from useTts
-const { voiceList, initVoices, setCustomPreviewText, customPreviewText, ssmlContent, jsonContent } =
-  useTts()
-
-// Initialize voices
-initVoices()
+const { voiceList, setCustomPreviewText, customPreviewText, ssmlContent, jsonContent } = useTts()
 
 // Global settings for SSML
 const selectedLocale = ref(props.selectedLocaleInitial)
@@ -603,7 +600,7 @@ const EmptyParagraphDetector = Extension.create({
 
 // Initialize editor
 const editor = useEditor({
-  content: props.modelValue || jsonContent.value || '',
+  content: props.modelValue || jsonContent.value || void 0,
   extensions: [
     Document,
     SsmlParagraph,
@@ -621,7 +618,6 @@ const editor = useEditor({
     }),
     // 添加空段落检测扩展
     EmptyParagraphDetector,
-    // 移除预览文本装饰器
     History,
   ],
   autofocus: props.autofocus,
@@ -630,10 +626,12 @@ const editor = useEditor({
   },
   onCreate: ({ editor }) => {
     syncSsml(editor)
+    emit('isEmptyString', editor.isEmpty)
   },
   onUpdate: ({ editor }) => {
     syncSsml(editor)
     emit('saveContent', editor.getJSON())
+    emit('isEmptyString', editor.isEmpty)
   },
 })
 

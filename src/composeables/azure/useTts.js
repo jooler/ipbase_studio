@@ -2,6 +2,7 @@ import { ref, watch, computed } from 'vue'
 import { useSpeechSynthesis } from './SpeechSynthesis'
 import localeMappings from '../../localeMappings.js'
 import localforage from 'localforage'
+import { appStore } from 'src/stores/stores'
 
 // 创建一个单例实例
 let ttsInstance = null
@@ -12,8 +13,8 @@ export function useTts() {
     return ttsInstance
   }
 
-  const apiKey = process.env.VITE_TTS_KEY
-  const region = process.env.VITE_TTS_REGION
+  const apiKey = computed(() => appStore.settings?.azureTtsKey)
+  const region = computed(() => appStore.settings?.azureTtsRegion)
 
   const VOICE_CONFIG_KEY = 'tts_voice_config'
   const FAVORITE_VOICES_KEY = 'tts_favorite_voices'
@@ -21,7 +22,7 @@ export function useTts() {
   // Text input
   const textToConvert = ref('')
   const ssmlContent = ref('')
-  const jsonContent = ref(null) // Store editor's JSON content
+  const jsonContent = ref(void 0) // Store editor's JSON content
   const isConverting = ref(false)
   const audioUrl = ref('')
 
@@ -54,12 +55,12 @@ export function useTts() {
   const apiUrl =
     useCustomEndpoint.value && customEndpoint.value
       ? customEndpoint.value
-      : `https://${region}.tts.speech.microsoft.com/cognitiveservices/v1`
+      : `https://${region.value}.tts.speech.microsoft.com/cognitiveservices/v1`
 
   // Initialize speech synthesis hook
   const { updateConfig, fetchVoiceList, getUniqueLocales, filterByLocale } = useSpeechSynthesis({
-    speechKey: apiKey,
-    speechRegion: region,
+    speechKey: apiKey.value,
+    speechRegion: region.value,
     speechVoiceName: selectedVoice.value?.value,
     useCustomEndpoint: useCustomEndpoint.value,
     customEndpoint: customEndpoint.value,
@@ -72,6 +73,7 @@ export function useTts() {
     return 'mdi-pause'
   }
 
+  const showWave = ref()
   // 预览语音功能
   const previewVoice = async (voice) => {
     console.log('customPreviewText:', customPreviewText.value) // 调试日志
@@ -80,9 +82,11 @@ export function useTts() {
       if (previewAudio.value.paused) {
         // 恢复播放
         previewAudio.value.play()
+        showWave.value = voice.value
       } else {
         // 暂停播放
         previewAudio.value.pause()
+        showWave.value = void 0
       }
       return
     }
@@ -105,6 +109,7 @@ export function useTts() {
       previewAudio.value = audioCache.value[cacheKey].audio
       previewAudio.value.currentTime = 0 // 从头开始播放
       previewAudio.value.play()
+      showWave.value = voice.value
       return
     }
 
@@ -125,7 +130,7 @@ export function useTts() {
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
-          'Ocp-Apim-Subscription-Key': apiKey,
+          'Ocp-Apim-Subscription-Key': apiKey.value,
           'Content-Type': 'application/ssml+xml',
           'X-Microsoft-OutputFormat': 'audio-16khz-128kbitrate-mono-mp3',
           'User-Agent': 'AzureTTSApp/1.0',
@@ -152,10 +157,12 @@ export function useTts() {
       }
 
       audio.play()
+      showWave.value = voice.value
 
       // 播放完成后更新状态
       audio.onended = () => {
         playingVoice.value = null
+        showWave.value = null
       }
     } catch (error) {
       console.error('预览语音出错:', error)
@@ -180,8 +187,8 @@ export function useTts() {
     [selectedVoice, useCustomEndpoint, customEndpoint],
     ([newVoice, newUseCustomEndpoint, newCustomEndpoint]) => {
       updateConfig({
-        speechKey: apiKey,
-        speechRegion: region,
+        speechKey: apiKey.value,
+        speechRegion: region.value,
         speechVoiceName: newVoice?.value,
         useCustomEndpoint: newUseCustomEndpoint,
         customEndpoint: newCustomEndpoint,
@@ -230,8 +237,18 @@ export function useTts() {
   }
 
   // Initialize voice list
+  let VoiceListCache
   const initVoices = async () => {
-    voiceList.value = await fetchVoiceList()
+    if (!apiKey.value || !region.value) {
+      appStore.settings.azureTtsKey = await localforage.getItem('azureTtsKey')
+      appStore.settings.azureTtsRegion =
+        (await localforage.getItem('azureTtsRegion')) || appStore.settings.azureTtsRegion
+    }
+    if (!apiKey.value || !region.value) {
+      return
+    }
+    voiceList.value = VoiceListCache || (await fetchVoiceList())
+    VoiceListCache = voiceList.value
     if (voiceList.value?.length > 0) {
       locales.value = getUniqueLocales(voiceList.value).map((code) => {
         return {
@@ -248,7 +265,7 @@ export function useTts() {
   // Azure text-to-speech function
   const convertToSpeech = async () => {
     console.log('ssmlContent.value', ssmlContent.value)
-    if (!ssmlContent.value || !apiKey) {
+    if (!ssmlContent.value || !apiKey.value) {
       alert('请输入文本和API密钥')
       return
     }
@@ -423,7 +440,7 @@ export function useTts() {
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
-          'Ocp-Apim-Subscription-Key': apiKey,
+          'Ocp-Apim-Subscription-Key': apiKey.value,
           'Content-Type': 'application/ssml+xml',
           'X-Microsoft-OutputFormat': 'audio-16khz-128kbitrate-mono-mp3',
           'User-Agent': 'AzureTTSApp/1.0',
@@ -573,6 +590,7 @@ export function useTts() {
     previewingVoice,
     playingVoice,
     previewAudio,
+    showWave,
     customPreviewText,
     // Favorites related
     favoriteVoices,

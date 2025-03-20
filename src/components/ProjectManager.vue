@@ -1,10 +1,11 @@
 <template>
-  <div class="project-manager">
+  <div class="project-manager fit">
     <q-tree
       :nodes="treeData"
       node-key="id"
       dense
-      selected-color="primary"
+      color="white"
+      selected-color="white"
       v-model:selected="selected"
       v-model:expanded="expanded"
     >
@@ -15,6 +16,7 @@
         >
           <q-icon :name="prop.node.icon" color="orange" size="24px" class="q-mr-sm" />
           <div
+            class="text-white"
             :class="selected !== prop.node.id ? 'op-7' : ''"
             @dblclick="prop.node.type === 'file' ? openFile(prop.node) : startEditing(prop.node)"
           >
@@ -41,44 +43,33 @@
             context-menu
             class="no-padding radius-sm z-max"
           >
-            <q-list bordered class="q-pa-xs radius-sm">
-              <q-item class="gap-sm q-pa-sm">
-                <q-btn
-                  v-for="i in icons"
-                  :key="i"
-                  flat
-                  dense
-                  padding="xs"
-                  :icon="i"
-                  @click.stop="updateNodeIcon(prop.node.id, i)"
-                />
-              </q-item>
-              <q-item class="gap-sm q-pa-sm">
-                <div class="row items-center gap-sm">
-                  <q-btn
-                    v-for="i in colors"
-                    :key="i"
-                    dense
-                    round
-                    size="xs"
-                    :color="i"
-                    @click.stop="updateNodeColormarker(prop.node.id, i)"
-                  />
-                </div>
-              </q-item>
+            <q-list bordered class="q-px-xs q-pb-xs q-pt-none radius-sm">
               <q-item class="no-padding">
                 <q-item-section>
                   <q-input
                     v-model="editingText"
                     dense
                     autofocus
+                    filled
                     class="radius-xs overflow-hidden border"
-                    input-class="q-px-sm"
                     @update:model-value="updateNode(prop.node.id)"
                     @keyup.enter="finishEditing"
                   />
                 </q-item-section>
               </q-item>
+              <q-separator class="op-5 q-my-xs" />
+              <div class="row items-center full-width justify-between q-py-md q-px-sm">
+                <q-btn
+                  v-for="i in colors"
+                  :key="i"
+                  dense
+                  round
+                  size="0.3rem"
+                  :color="i"
+                  @click.stop="updateNodeColormarker(prop.node.id, i)"
+                />
+              </div>
+              <q-separator class="op-5 q-my-xs" />
               <template v-if="prop.node.type === 'folder'">
                 <q-item
                   :clickable="!showNewFolderNameInput"
@@ -135,6 +126,55 @@
         </div>
       </template>
     </q-tree>
+    <q-popup-proxy
+      context-menu
+      ref="rootMenu"
+      class="no-padding radius-sm z-max"
+      @before-show="selected = null"
+    >
+      <q-list bordered class="q-pa-xs radius-sm">
+        <q-item
+          :clickable="!showNewFolderNameInput"
+          :v-ripple="!showNewFolderNameInput"
+          class="q-pa-none radius-xs"
+          @click="createFolderHandler"
+        >
+          <q-item-section :class="showNewFolderNameInput ? 'q-pa-none' : 'q-pa-sm'">
+            <q-item-label v-if="!showNewFolderNameInput">新建配音文件夹</q-item-label>
+            <q-item-label v-else>
+              <q-input
+                v-model="newFolderName"
+                dense
+                autofocus
+                class="radius-xs overflow-hidden border"
+                input-class="q-px-sm"
+                @keyup.enter="createFolder"
+              />
+            </q-item-label>
+          </q-item-section>
+        </q-item>
+        <q-item
+          :clickable="!showNewFileNameInput"
+          :v-ripple="!showNewFileNameInput"
+          class="q-pa-none radius-xs"
+          @click="createFileHandler"
+        >
+          <q-item-section :class="showNewFileNameInput ? 'q-pa-none' : 'q-pa-sm'">
+            <q-item-label v-if="!showNewFileNameInput">新建配音文本</q-item-label>
+            <q-item-label v-else>
+              <q-input
+                v-model="newFileName"
+                dense
+                autofocus
+                class="radius-xs overflow-hidden border"
+                input-class="q-px-sm"
+                @keyup.enter="createFile"
+              />
+            </q-item-label>
+          </q-item-section>
+        </q-item>
+      </q-list>
+    </q-popup-proxy>
   </div>
 </template>
 
@@ -270,6 +310,8 @@ const createFolderHandler = () => {
   showNewFolderNameInput.value = true
   showNewFileNameInput.value = false
 }
+
+const rootMenu = ref(null)
 const createFile = async () => {
   const parentNode = selected.value ? findNode(treeData.value, selected.value) : null
 
@@ -302,6 +344,11 @@ const createFile = async () => {
   editingNode.value = newFile.id
   editingText.value = newFile.name
   selected.value = fileId
+  newFileName.value = '新文本'
+  showNewFileNameInput.value = false
+  if (rootMenu.value) {
+    rootMenu.value.hide()
+  }
   await contextMenuClose()
 }
 
@@ -340,6 +387,11 @@ const createFolder = async () => {
   editingNode.value = newFolder.id
   editingText.value = newFolder.name
   selected.value = newFolder.id
+  newFolderName.value = '新文件夹'
+  showNewFolderNameInput.value = false
+  if (rootMenu.value) {
+    rootMenu.value.hide()
+  }
   await contextMenuClose()
 }
 
@@ -432,10 +484,6 @@ const contextMenuOpen = (node) => {
 // Modify contextMenuClose method
 const contextMenuClose = async () => {
   await finishEditing()
-  const menuRef = contextMenuRefs.value[selected.value]
-  if (menuRef) {
-    menuRef.hide()
-  }
 }
 
 // Modify finishEditing method
@@ -468,19 +516,19 @@ const updateNode = (nodeId) => {
   }
 }
 
-const icons = ['mdi-folder', 'mdi-file', 'mdi-flag']
+// const icons = ['mdi-folder', 'mdi-file', 'mdi-flag']
 const colors = ['primary', 'secondary', 'accent', 'positive', 'negative', 'info', 'warning']
-const updateNodeIcon = (nodeId, icon) => {
-  console.log(nodeId, icon)
-  const _node = findNode(treeData.value, nodeId)
-  if (_node) {
-    _node.icon = icon
-    // If this is the currently open file, update its name
-    if (currentOpenFile.value && currentOpenFile.value.id === _node.id) {
-      currentOpenFile.value.icon = icon
-    }
-  }
-}
+// const updateNodeIcon = (nodeId, icon) => {
+//   console.log(nodeId, icon)
+//   const _node = findNode(treeData.value, nodeId)
+//   if (_node) {
+//     _node.icon = icon
+//     // If this is the currently open file, update its name
+//     if (currentOpenFile.value && currentOpenFile.value.id === _node.id) {
+//       currentOpenFile.value.icon = icon
+//     }
+//   }
+// }
 const updateNodeColormarker = (nodeId, color) => {
   console.log(nodeId, color)
   const _node = findNode(treeData.value, nodeId)
