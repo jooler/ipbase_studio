@@ -175,7 +175,7 @@ export function useTts() {
     const filtered = filterByLocale(voiceList.value, selectedLocale.value)
     return filtered.map((voice) => {
       return {
-        label: `${voice.DisplayName} - ${voice.Gender === 'Male' ? '男声' : '女声'}`,
+        label: `${reLocalName(voice.LocalName)} - ${voice.Gender === 'Male' ? '男声' : '女声'}`,
         value: voice.ShortName,
         ...voice,
       }
@@ -567,6 +567,15 @@ export function useTts() {
       console.error('恢复配置失败:', error)
     }
   }
+  const reLocalName = (localName) => {
+    if (localName === 'Yunfan Multilingual') {
+      return '云帆'
+    } else if (localName === 'Yunxiao Multilingual') {
+      return '云潇'
+    } else {
+      return localName
+    }
+  }
 
   // 创建实例
   ttsInstance = {
@@ -604,6 +613,7 @@ export function useTts() {
     previewVoice,
     getPlayIcon,
     setCustomPreviewText,
+    reLocalName,
   }
 
   return ttsInstance

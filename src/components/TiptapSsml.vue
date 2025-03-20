@@ -237,7 +237,14 @@ const emit = defineEmits([
 ])
 
 // Get data from useTts
-const { voiceList, setCustomPreviewText, customPreviewText, ssmlContent, jsonContent } = useTts()
+const {
+  voiceList,
+  setCustomPreviewText,
+  customPreviewText,
+  ssmlContent,
+  jsonContent,
+  reLocalName,
+} = useTts()
 
 // Global settings for SSML
 const selectedLocale = ref(props.selectedLocaleInitial)
@@ -255,7 +262,7 @@ const filteredVoiceOptions = computed(() => {
   )
 
   return filtered.map((voice) => ({
-    label: `${voice.DisplayName} - ${voice.Gender === 'Male' ? '男声' : '女声'}`,
+    label: `${reLocalName(voice.LocalName)} - ${voice.Gender === 'Male' ? '男声' : '女声'}`,
     value: voice.ShortName,
     ...voice,
   }))

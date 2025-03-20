@@ -92,15 +92,14 @@
                 class="hovered-item"
                 :class="{ 'border-deep-orange bg-deep-orange': selectedVoice?.value === i.value }"
               >
-                <div
-                  class="cursor-pointer column flex-center q-py-xl"
-                  :style="`background-image: url(${postImage(i)});background-size: cover;`"
+                <q-img
+                  :src="postImage(i)"
+                  :ratio="4 / 5"
+                  spinner-color="primary"
+                  spinner-size="82px"
+                  class="cursor-pointer"
                   @click="selectedVoice = i"
                 >
-                  <div class="q-py-xl" />
-                  <div v-if="i.value === showWave" class="absolute-full">
-                    <AudioWave class="fit" style="background-color: #00000088" />
-                  </div>
                   <q-tooltip class="no-padding transparent">
                     <q-card bordered>
                       <q-card-section
@@ -111,8 +110,14 @@
                       </q-card-section>
                     </q-card>
                   </q-tooltip>
-                </div>
-                <q-card-section class="row no-wrap items-center q-py-xs q-px-sm border-top">
+                  <div v-if="i.value === showWave" class="absolute-full">
+                    <AudioWave class="fit" style="background-color: #00000088" />
+                  </div>
+                </q-img>
+                <q-card-section
+                  class="row no-wrap items-center q-py-xs q-px-sm border-top cursor-pointer"
+                  @click="selectedVoice = i"
+                >
                   <span class="q-py-xs">{{ reLocalName(i.LocalName) || i.DisplayName }}</span>
                 </q-card-section>
                 <q-card-section class="row no-wrap items-center q-px-xs q-pt-none q-pb-xs">
@@ -155,6 +160,7 @@
               :min="50"
               :max="200"
               :step="5"
+              dense
               label
               label-always
               color="primary"
@@ -174,6 +180,7 @@
               :max="150"
               :step="5"
               label
+              dense
               label-always
               color="primary"
               class="col"
@@ -192,6 +199,7 @@
               :max="100"
               :step="5"
               label
+              dense
               label-always
               color="primary"
               class="col"
@@ -269,6 +277,7 @@ const {
   convertToSpeech,
   saveConfig,
   restoreConfig,
+  reLocalName,
 } = useTts()
 
 // Add updateFileName method to handle file name changes
@@ -303,15 +312,6 @@ const postImage = (i) => {
     return `public/images/${i.ShortName}.webp`
   } else {
     return `public/images/${i.Gender}.png`
-  }
-}
-const reLocalName = (localName) => {
-  if (localName === 'Yunfan Multilingual') {
-    return '云帆'
-  } else if (localName === 'Yunxiao Multilingual') {
-    return '云潇'
-  } else {
-    return localName
   }
 }
 
