@@ -1,34 +1,38 @@
 <template>
   <MainContainer>
+    <template #headerLeft>
+      <q-input
+        v-if="currentFile"
+        v-model="currentFile.name"
+        dense
+        class="q-mr-md border radius-xs overflow-hidden"
+        :class="$q.dark.mode ? 'bg-grey-10' : 'bg-grey-2'"
+        input-class="q-px-md"
+        style="max-width: 24rem"
+        @update:model-value="updateFileName"
+      />
+    </template>
+    <template #headerRight>
+      <q-btn
+        color="primary"
+        unelevated
+        padding="xs md"
+        label="转换为语音"
+        @click="convertToSpeech"
+        :loading="isConverting"
+        :disable="!ssmlContent"
+      />
+    </template>
     <template #leftDrawerContent>
-      <ProjectManager ref="projectManager" @open-file="handleOpenFile" />
+      <ProjectManager ref="projectManager" class="q-pa-sm" @open-file="handleOpenFile" />
     </template>
     <template #mainContent>
-      <q-card flat square class="absolute-full column">
-        <q-card-actions align="right" class="border-bottom">
-          <q-input
-            v-if="currentFile"
-            v-model="currentFile.name"
-            dense
-            outlined
-            color="primary"
-            class="q-mr-md"
-            style="max-width: 200px"
-            @update:model-value="updateFileName"
-          />
-          currentOpenFile: {{ currentOpenFile }}
-          <q-space />
-          <q-btn
-            color="primary"
-            unelevated
-            padding="xs md"
-            label="转换为语音"
-            @click="convertToSpeech"
-            :loading="isConverting"
-            :disable="!ssmlContent"
-          />
-        </q-card-actions>
-
+      <q-card
+        flat
+        square
+        class="absolute-full column"
+        :class="$q.dark.mode ? 'bg-grey-10' : 'bg-grey-1'"
+      >
         <tiptap-ssml
           :key="currentFile?.id"
           v-model="jsonContent"

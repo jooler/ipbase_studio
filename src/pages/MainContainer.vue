@@ -1,12 +1,14 @@
 <template>
   <q-page>
     <q-layout view="lHr LpR lFr" container class="absolute-full">
-      <q-header class="transparent">
-        <q-bar :class="$q.dark.mode ? 'bg-dark text-grey-1' : 'bg-white text-grey-10'">
-          <q-btn dense flat round icon="menu" @click="toggleLeftDrawer" />
+      <q-header class="transparent border-bottom">
+        <q-toolbar :class="$q.dark.mode ? 'bg-dark text-grey-1' : 'bg-white text-grey-10'">
+          <q-btn dense flat round icon="mdi-file-tree" class="q-mr-md" @click="toggleLeftDrawer" />
+          <slot name="headerLeft"></slot>
           <q-space />
-          <q-btn dense flat round icon="menu" @click="toggleRightDrawer" />
-        </q-bar>
+          <slot name="headerRight"></slot>
+          <q-btn dense flat round icon="mdi-tune" class="q-ml-md" @click="toggleRightDrawer" />
+        </q-toolbar>
       </q-header>
 
       <q-drawer v-model="leftDrawerOpen" side="left" bordered :width="leftDrawerWidth">
