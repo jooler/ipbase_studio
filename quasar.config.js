@@ -214,7 +214,7 @@ export default defineConfig((ctx) => {
       // specify the debugging port to use for the Electron app when running in development mode
       inspectPort: 5858,
 
-      bundler: 'packager', // 'packager' or 'builder'
+      bundler: 'builder', // 'packager' or 'builder'
 
       packager: {
         // https://github.com/electron-userland/electron-packager/blob/master/docs/api.md#options
@@ -229,8 +229,84 @@ export default defineConfig((ctx) => {
 
       builder: {
         // https://www.electron.build/configuration/configuration
-
-        appId: 'ai-studio',
+        appId: 'com.ipbase.studio',
+        productName: 'IPBase Studio',
+        copyright: 'Copyright © 2024 IPBase',
+        asar: true,
+        protocols: {
+          name: 'ipbase-protocol',
+          schemes: ['ipbase', 'wss', 'ws'],
+        },
+        // files: [
+        //   'dist/electron/**/*'
+        // ],
+        dmg: {
+          contents: [
+            {
+              x: 130,
+              y: 220,
+            },
+            {
+              x: 410,
+              y: 220,
+              type: 'link',
+              path: '/Applications',
+            },
+          ],
+        },
+        mac: {
+          icon: fileURLToPath(new URL('./src-electron/icons/icon.icns', import.meta.url)),
+          target: ['dmg'],
+          identity: null, // 跳过签名步骤
+        },
+        win: {
+          artifactName: '${productName}-${version}.${ext}',
+          target: [
+            {
+              target: 'nsis',
+              arch: ['x64'],
+            },
+          ],
+          // target: "msi",
+          icon: fileURLToPath(new URL('./src-electron/icons/icon.ico', import.meta.url)),
+          requestedExecutionLevel: 'requireAdministrator',
+        },
+        linux: {
+          target: [
+            'AppImage',
+            'rpm',
+            'deb',
+            {
+              target: 'flatpak',
+              arch: ['x64'],
+            },
+          ],
+          category: 'Development',
+          maintainer: 'auxcc <jerr@foxmail.com>',
+          vendor: 'IPBase',
+          synopsis: 'IPBase Desktop Application',
+        },
+        flatpak: {
+          base: 'org.electronjs.Electron2.BaseApp',
+          baseVersion: '22.08',
+          runtime: 'org.freedesktop.Platform',
+          runtimeVersion: '22.08',
+          sdk: 'org.freedesktop.Sdk',
+          finishArgs: [
+            '--share=network',
+            '--share=ipc',
+            '--socket=x11',
+            '--socket=wayland',
+            '--device=dri',
+          ],
+        },
+        files: [
+          '!node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}',
+          '!node_modules/*/{test,__tests__,tests,powered-test,example,examples}',
+          '!node_modules/*.d.ts',
+          '!node_modules/.bin',
+          '!**/*.{iml,o,hprof,orig,pyc,pyo,rbc,swp,csproj,sln,xproj}',
+        ],
       },
     },
 

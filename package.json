@@ -1,8 +1,8 @@
 {
-  "name": "ai-studio",
+  "name": "ipbase-studio",
   "version": "0.0.1",
-  "description": "A Quasar Project",
-  "productName": "AI Studio for voice",
+  "description": "IPBase Studio for voice generation by Azure TTS",
+  "productName": "IPBase Studio",
   "author": "JERR <jerr@foxmail.com>",
   "type": "module",
   "private": true,
@@ -37,12 +37,14 @@
     "vue-router": "^4.0.0"
   },
   "devDependencies": {
+    "@electron/packager": "^18.3.2",
     "@eslint/js": "^9.14.0",
     "@intlify/unplugin-vue-i18n": "^4.0.0",
     "@quasar/app-vite": "^2.1.0",
     "@vue/eslint-config-prettier": "^10.1.0",
     "autoprefixer": "^10.4.2",
     "electron": "^35.0.2",
+    "electron-builder": "^24.3.0",
     "eslint": "^9.14.0",
     "eslint-plugin-vue": "^9.30.0",
     "globals": "^15.12.0",

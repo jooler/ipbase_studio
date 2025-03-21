@@ -309,9 +309,9 @@ const isEmptyString = (isEmpty) => {
 
 const postImage = (i) => {
   if (selectedLocale.value?.value === 'zh-cn') {
-    return `public/images/${i.ShortName}.webp`
+    return `${process.env.VITE_Images_URI}/${i.ShortName}.webp`
   } else {
-    return `public/images/${i.Gender}.png`
+    return `${process.env.VITE_Images_URI}/${i.Gender}.png`
   }
 }
 
