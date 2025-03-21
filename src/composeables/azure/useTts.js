@@ -1,8 +1,8 @@
-import { ref, watch, computed } from 'vue'
+import { ref, watch, computed, nextTick } from 'vue'
 import { useSpeechSynthesis } from './SpeechSynthesis'
 import localeMappings from '../../localeMappings.js'
 import localforage from 'localforage'
-import { appStore } from 'src/stores/stores'
+import { api } from 'src/boot/axios'
 
 // 创建一个单例实例
 let ttsInstance = null
@@ -13,9 +13,6 @@ export function useTts() {
     return ttsInstance
   }
 
-  const apiKey = computed(() => appStore.settings?.azureTtsKey)
-  const region = computed(() => appStore.settings?.azureTtsRegion)
-
   const VOICE_CONFIG_KEY = 'tts_voice_config'
   const FAVORITE_VOICES_KEY = 'tts_favorite_voices'
 
@@ -25,6 +22,7 @@ export function useTts() {
   const jsonContent = ref(void 0) // Store editor's JSON content
   const isConverting = ref(false)
   const audioUrl = ref('')
+  const currentFile = ref(null)
 
   // Configuration
   const selectedLocale = ref('')
@@ -51,16 +49,8 @@ export function useTts() {
     customPreviewText.value = text
   }
 
-  // Use REST API directly
-  const apiUrl =
-    useCustomEndpoint.value && customEndpoint.value
-      ? customEndpoint.value
-      : `https://${region.value}.tts.speech.microsoft.com/cognitiveservices/v1`
-
   // Initialize speech synthesis hook
   const { updateConfig, fetchVoiceList, getUniqueLocales, filterByLocale } = useSpeechSynthesis({
-    speechKey: apiKey.value,
-    speechRegion: region.value,
     speechVoiceName: selectedVoice.value?.value,
     useCustomEndpoint: useCustomEndpoint.value,
     customEndpoint: customEndpoint.value,
@@ -74,6 +64,20 @@ export function useTts() {
   }
 
   const showWave = ref()
+  const processBase64Audio = (audioBase64Data) => {
+    const audioBase64 = audioBase64Data // 获取 Base64 字符串
+    // 将 Base64 转换回二进制数据
+    const binaryString = atob(audioBase64) // 解码 Base64
+    const len = binaryString.length
+    const bytes = new Uint8Array(len)
+    for (let i = 0; i < len; i++) {
+      bytes[i] = binaryString.charCodeAt(i) // 转换为字节数组
+    }
+
+    // 创建 Blob 对象
+    const audioBlob = new Blob([bytes], { type: 'audio/mpeg' })
+    return URL.createObjectURL(audioBlob)
+  }
   // 预览语音功能
   const previewVoice = async (voice) => {
     console.log('customPreviewText:', customPreviewText.value) // 调试日志
@@ -126,28 +130,15 @@ export function useTts() {
     </speak>`
 
     try {
-      // 直接调用API进行转换，而不修改当前选中的语音
-      const response = await fetch(apiUrl, {
-        method: 'POST',
-        headers: {
-          'Ocp-Apim-Subscription-Key': apiKey.value,
-          'Content-Type': 'application/ssml+xml',
-          'X-Microsoft-OutputFormat': 'audio-16khz-128kbitrate-mono-mp3',
-          'User-Agent': 'AzureTTSApp/1.0',
+      const res = await api.post('/tts/convert', {
+        data: {
+          ssml: previewSsml,
         },
-        body: previewSsml,
       })
-
-      if (!response.ok) {
-        console.error('预览语音失败:', await response.text())
-        return
-      }
-
-      const audioBlob = await response.blob()
-      const url = URL.createObjectURL(audioBlob)
-
       // 创建音频元素并播放
+      const url = processBase64Audio(res.data.audioBase64)
       const audio = new Audio(url)
+      audio.play()
       previewAudio.value = audio
 
       // 将音频保存到缓存
@@ -156,7 +147,6 @@ export function useTts() {
         text: previewText,
       }
 
-      audio.play()
       showWave.value = voice.value
 
       // 播放完成后更新状态
@@ -187,8 +177,6 @@ export function useTts() {
     [selectedVoice, useCustomEndpoint, customEndpoint],
     ([newVoice, newUseCustomEndpoint, newCustomEndpoint]) => {
       updateConfig({
-        speechKey: apiKey.value,
-        speechRegion: region.value,
         speechVoiceName: newVoice?.value,
         useCustomEndpoint: newUseCustomEndpoint,
         customEndpoint: newCustomEndpoint,
@@ -239,14 +227,6 @@ export function useTts() {
   // Initialize voice list
   let VoiceListCache
   const initVoices = async () => {
-    if (!apiKey.value || !region.value) {
-      appStore.settings.azureTtsKey = await localforage.getItem('azureTtsKey')
-      appStore.settings.azureTtsRegion =
-        (await localforage.getItem('azureTtsRegion')) || appStore.settings.azureTtsRegion
-    }
-    if (!apiKey.value || !region.value) {
-      return
-    }
     voiceList.value = VoiceListCache || (await fetchVoiceList())
     VoiceListCache = voiceList.value
     if (voiceList.value?.length > 0) {
@@ -257,6 +237,9 @@ export function useTts() {
         }
       })
     }
+    selectedLocale.value = { label: '中文（中国）', value: 'zh-cn' }
+    await nextTick()
+    selectedVoice.value = voiceOptions.value.find((i) => i.value === 'zh-CN-YunzeNeural')
 
     // 加载收藏的语音
     await loadFavorites()
@@ -264,17 +247,11 @@ export function useTts() {
 
   // Azure text-to-speech function
   const convertToSpeech = async () => {
-    console.log('ssmlContent.value', ssmlContent.value)
-    if (!ssmlContent.value || !apiKey.value) {
-      alert('请输入文本和API密钥')
+    if (!ssmlContent.value) {
+      alert('请输入文本')
       return
     }
-
-    if (useCustomEndpoint.value && !customEndpoint.value) {
-      alert('请输入自定义终结点URL')
-      return
-    }
-
+    document.activeElement.blur() // 让元素失焦，放置用户按下空格重新请求
     try {
       isConverting.value = true
       audioUrl.value = '' // Clear previous URL
@@ -435,69 +412,13 @@ export function useTts() {
         console.warn('No voice selected, using default from SSML')
       }
 
-      // Direct API call
-      console.log('发送SSML请求，内容长度:', ssmlContent.value.length, '字节')
-      const response = await fetch(apiUrl, {
-        method: 'POST',
-        headers: {
-          'Ocp-Apim-Subscription-Key': apiKey.value,
-          'Content-Type': 'application/ssml+xml',
-          'X-Microsoft-OutputFormat': 'audio-16khz-128kbitrate-mono-mp3',
-          'User-Agent': 'AzureTTSApp/1.0',
+      const res = await api.post('/tts/convert', {
+        data: {
+          ssml: ssmlContent.value,
         },
-        body: ssmlContent.value,
       })
-
-      // 详细记录错误信息
-      if (!response.ok) {
-        const errorText = await response.text().catch(() => '无法获取错误详情')
-
-        // 更详细的错误日志
-        console.error('API 请求失败:', {
-          url: apiUrl,
-          status: response.status,
-          statusText: response.statusText,
-          headers: Object.fromEntries([...response.headers.entries()]),
-          responseBody: errorText,
-        })
-
-        // 针对常见错误码提供更具体的提示
-        let errorMessage = `Azure API错误: ${response.status} ${response.statusText}`
-
-        if (response.status === 400) {
-          errorMessage += '\n可能原因: SSML格式错误或包含不支持的语音名称'
-
-          if (errorText.includes('voice')) {
-            errorMessage += '\n语音名称可能不正确或不支持'
-          }
-          if (errorText.includes('prosody')) {
-            errorMessage += '\nprosody标签可能使用了不支持的属性值'
-          }
-          if (errorText.includes('InvalidSsmlElement')) {
-            errorMessage += '\nSSML包含无效的元素或属性'
-          }
-        } else if (response.status === 401) {
-          errorMessage += '\n认证失败，请检查API密钥是否正确'
-        } else if (response.status === 429) {
-          errorMessage += '\n请求过多，超出API限制'
-        } else if (response.status >= 500) {
-          errorMessage += '\n服务器端错误，请稍后重试'
-        }
-
-        errorMessage += `\n详细错误: ${errorText}`
-        throw new Error(errorMessage)
-      }
-
-      // Process returned audio data
-      const audioBlob = await response.blob()
-      console.log('获取到音频Blob:', audioBlob.size, 'bytes', audioBlob.type)
-
-      if (audioBlob.size === 0) {
-        throw new Error('获取到的音频数据为空')
-      }
-
-      audioUrl.value = URL.createObjectURL(audioBlob)
-      console.log('生成音频URL:', audioUrl.value)
+      // 创建音频元素并播放
+      audioUrl.value = processBase64Audio(res.data.audioBase64)
     } catch (error) {
       console.error('转换失败:', error)
       alert(`转换失败: ${error.message}`)
@@ -578,13 +499,14 @@ export function useTts() {
   }
 
   // 创建实例
+  const mode = ref('fileSystem')
   ttsInstance = {
-    apiUrl,
-    apiKey,
+    mode,
     // State
     textToConvert,
     ssmlContent,
     jsonContent,
+    currentFile,
     isConverting,
     audioUrl,
     selectedLocale,

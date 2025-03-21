@@ -7,9 +7,19 @@ import axios from 'axios'
 // good idea to move this instance creation inside of the
 // "export default () => {}" function below (which runs individually
 // for each client)
-const api = axios.create({ baseURL: 'https://api.example.com' })
+// const api = axios.create({ baseURL: 'https://api.example.com' })
+const api = axios.create({
+  baseURL: import.meta.env.VITE_API_URL || 'https://api.stduio.yihu.team/api',
+})
 
 export default defineBoot(({ app }) => {
+  api.interceptors.request.use(async (config) => {
+    const token = process.env.VITE_TTS_KEY
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`
+    }
+    return config
+  })
   // for use inside Vue files (Options API) through this.$axios and this.$api
 
   app.config.globalProperties.$axios = axios

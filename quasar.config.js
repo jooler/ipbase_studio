@@ -3,8 +3,9 @@
 
 import { defineConfig } from '#q-app/wrappers'
 import { fileURLToPath } from 'node:url'
-import { VueMcp } from 'vite-plugin-vue-mcp'
+// import { VueMcp } from 'vite-plugin-vue-mcp'
 // import { loadEnv } from 'vite'
+import fs from 'fs'
 
 export default defineConfig((ctx) => {
   // Load env file based on mode
@@ -92,35 +93,39 @@ export default defineConfig((ctx) => {
           { server: false },
         ],
 
-        [
-          VueMcp,
-          {
-            host: 'localhost',
-            port: 3039,
-            printUrls: true,
-          },
-        ],
+        // [
+        //   VueMcp,
+        //   {
+        //     host: 'localhost',
+        //     port: 3039,
+        //     printUrls: true,
+        //   },
+        // ],
       ],
     },
 
     // Full list of options: https://v2.quasar.dev/quasar-cli-vite/quasar-config-file#devserver
     devServer: {
       // https: true,
-      open: true, // opens browser window automatically
-      port: 9000,
-      proxy: {
-        '/__mcp': {
-          target: 'http://localhost:3039',
-          changeOrigin: true,
-          ws: true,
-        },
-      },
+      // open: true, // opens browser window automatically
+      // port: 9000,
+      // proxy: {
+      //   '/__mcp': {
+      //     target: 'http://localhost:3039',
+      //     changeOrigin: true,
+      //     ws: true,
+      //   },
+      // },
+      https: true,
+      key: fs.readFileSync('/Volumes/StoragePool/www/server.key'),
+      cert: fs.readFileSync('/Volumes/StoragePool/www/server.crt'),
+      ca: fs.readFileSync('/Volumes/StoragePool/www/ca.crt'),
     },
 
     // https://v2.quasar.dev/quasar-cli-vite/quasar-config-file#framework
     framework: {
       config: {
-        dark: 'auto',
+        dark: true,
       },
 
       // iconSet: 'material-icons', // Quasar icon set
@@ -134,7 +139,17 @@ export default defineConfig((ctx) => {
       // directives: [],
 
       // Quasar plugins
-      plugins: [],
+      plugins: [
+        'Notify',
+        'Meta',
+        'Dark',
+        'Dialog',
+        'AppVisibility',
+        'Platform',
+        'Screen',
+        'Loading',
+        'LoadingBar',
+      ],
     },
 
     // animations: 'all', // --- includes all animations

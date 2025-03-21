@@ -1,32 +1,18 @@
 <template>
   <q-layout view="lHr LpR lFr">
     <q-header class="transparent">
-      <q-bar
-        class="q-py-xs q-px-sm"
+      <q-bar class="q-py-xs q-px-sm"
         :class="$q.dark.mode ? 'bg-dark border-bottom text-white' : 'bg-primary-dark text-grey-1'"
-        style="height: 2.3rem"
-      >
+        style="height: 2.3rem">
         <span class="font-medium">{{ appStore.app?.name }}</span>
-        <div
-          class="q-space full-height"
-          :class="$q.platform.is.electron ? 'q-electron-drag' : ''"
-        ></div>
+        <div class="q-space full-height" :class="$q.platform.is.electron ? 'q-electron-drag' : ''"></div>
         <q-btn dense flat icon="mdi-theme-light-dark" @click="$q.dark.toggle()" />
-        <q-btn dense flat icon="settings" @click="openSettings = !openSettings" />
         <AppControl v-if="$q.platform.is.electron" />
-        <q-dialog v-model="openSettings" persistent>
-          <AppSettings />
-        </q-dialog>
       </q-bar>
     </q-header>
 
-    <q-drawer
-      v-model="leftDrawerOpen"
-      side="left"
-      :width="64"
-      class="q-pa-sm border-right"
-      :class="$q.dark.mode ? 'bg-dark text-grey-1' : 'bg-primary-dark text-grey-1'"
-    >
+    <q-drawer v-model="leftDrawerOpen" side="left" :width="64" class="q-pa-sm border-right"
+      :class="$q.dark.mode ? 'bg-dark text-grey-1' : 'bg-primary-dark text-grey-1'">
       <AppNavigation />
     </q-drawer>
 
@@ -41,29 +27,19 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-import AppNavigation from '../components/AppNavigation.vue'
-import AppControl from '../components/AppControl.vue'
-import localforage from 'localforage'
-import AppSettings from 'src/components/AppSettings.vue'
-import { appStore } from 'src/stores/stores'
+  import { ref } from 'vue'
+  import AppNavigation from '../components/AppNavigation.vue'
+  import AppControl from '../components/AppControl.vue'
+  import { appStore } from 'src/stores/stores'
 
-const leftDrawerOpen = ref(true)
-const rightDrawerOpen = ref(false)
+  const leftDrawerOpen = ref(true)
+  const rightDrawerOpen = ref(false)
 
-const openSettings = ref(false)
-onMounted(async () => {
-  appStore.settings.azureTtsKey = await localforage.getItem('azureTtsKey')
-  appStore.settings.azureTtsRegion =
-    (await localforage.getItem('azureTtsRegion')) || appStore.settings.azureTtsRegion
-  if (!appStore.settings.azureTtsKey || !appStore.settings.azureTtsRegion) {
-    openSettings.value = true
-  }
-})
 </script>
 
 <style>
-.q-electron-drag {
-  cursor: move; /* 鼠标悬停时显示移动样式 */
-}
+  .q-electron-drag {
+    cursor: move;
+    /* 鼠标悬停时显示移动样式 */
+  }
 </style>
