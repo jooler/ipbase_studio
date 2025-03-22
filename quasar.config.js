@@ -63,6 +63,11 @@ export default defineConfig((ctx) => {
 
       // extendViteConf (viteConf) {},
       // viteVuePluginOptions: {},
+      extendViteConf(viteConf) {
+        viteConf.esbuild = {
+          drop: ['console', 'debugger'],
+        }
+      },
 
       vitePlugins: [
         [
@@ -288,13 +293,13 @@ export default defineConfig((ctx) => {
         },
         linux: {
           target: [
-            'AppImage',
+            // 'AppImage',
             'rpm',
-            'deb',
-            {
-              target: 'flatpak',
-              arch: ['x64'],
-            },
+            // 'deb',
+            // {
+            //   target: 'flatpak',
+            //   arch: ['x64'],
+            // },
           ],
           category: 'Development',
           maintainer: 'auxcc <jerr@foxmail.com>',

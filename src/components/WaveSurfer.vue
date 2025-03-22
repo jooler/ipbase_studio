@@ -5,7 +5,7 @@
     </q-card-section>
     <q-card-section class="border-top">
       <div class="row no-wrap items-center gap-sm">
-        <q-btn ref="playBtn" unelevated round size="lg" color="primary" :icon="isPlaying ? 'mdi-pause' : 'mdi-play'"
+        <q-btn unelevated round size="lg" color="primary" :icon="isPlaying ? 'mdi-pause' : 'mdi-play'"
           @click="waveSurfer?.playPause()" />
         <span class="q-ml-sm">{{ formatTime(currentTime) }} / {{ formatTime(totalDuration) }}</span>
         <q-space />
@@ -26,7 +26,6 @@
     },
   })
   const containerRef = useTemplateRef('containerRef')
-  const playBtn = useTemplateRef('playBtn')
   const options = ref({
     height: 48,
     waveColor: 'gray',

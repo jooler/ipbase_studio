@@ -3,10 +3,11 @@
     <q-tree :nodes="treeData" node-key="id" dense color="white" selected-color="white" v-model:selected="selected"
       v-model:expanded="expanded">
       <template v-slot:default-header="prop">
-        <div class="row items-center no-wrap text-no-wrap full-width" @contextmenu.prevent="contextMenuOpen(prop.node)">
+        <div class="row items-center no-wrap text-no-wrap full-width q-pr-xs"
+          :class="currentFile?.id === prop.node.id ? 'bg-deep-orange radius-xs border shadow-6' : 'border-placeholder'"
+          @contextmenu.prevent="contextMenuOpen(prop.node)" @click="openFile(prop.node)">
           <q-icon :name="prop.node.icon" color="orange" size="24px" class="q-mr-sm" />
-          <div class="text-white" :class="selected !== prop.node.id ? 'op-7' : ''"
-            @dblclick="prop.node.type === 'file' ? openFile(prop.node) : startEditing(prop.node)">
+          <div class="text-white" :class="selected !== prop.node.id ? 'op-7' : ''">
             {{ prop.node.name }}
           </div>
           <q-space />
@@ -98,6 +99,9 @@
   import localforage from 'localforage'
   import { useProjectManager } from '../composeables/project/useProjectManager'
 
+  import { useTts } from 'src/composeables/azure/useTts.js'
+  // Use the TTS composable
+  const { mode, currentFile } = useTts()
   // Storage keys
   const ROOT_STORAGE_KEY = 'project_root'
   const EXPANDED_KEY = 'project_expanded_nodes'
@@ -147,6 +151,10 @@
         expanded.value = [rootId] // Expand root by default
         await saveData()
         await saveExpandedState()
+      }
+      if (mode.value === 'indexedDB') {
+        const node = JSON.parse(localStorage.getItem('currentOpenFile'))
+        if (node) openFile(node)
       }
     } catch (error) {
       console.error('Error loading project data:', error)
@@ -387,7 +395,6 @@
 
   // Modify contextMenuOpen method
   const contextMenuOpen = (node) => {
-    startEditing(node)
     selected.value = node.id
     const menuRef = contextMenuRefs.value[node.id]
     if (menuRef) {
@@ -413,12 +420,6 @@
     showNewFileNameInput.value = false
   }
 
-  // Start editing node name
-  const startEditing = (node) => {
-    editingNode.value = node.id
-    editingText.value = node.name || ''
-  }
-
   const updateNode = (nodeId) => {
     const _node = findNode(treeData.value, nodeId)
     if (_node) {
@@ -430,19 +431,7 @@
     }
   }
 
-  // const icons = ['mdi-folder', 'mdi-file', 'mdi-flag']
   const colors = ['primary', 'secondary', 'accent', 'positive', 'negative', 'info', 'warning']
-  // const updateNodeIcon = (nodeId, icon) => {
-  //   console.log(nodeId, icon)
-  //   const _node = findNode(treeData.value, nodeId)
-  //   if (_node) {
-  //     _node.icon = icon
-  //     // If this is the currently open file, update its name
-  //     if (currentOpenFile.value && currentOpenFile.value.id === _node.id) {
-  //       currentOpenFile.value.icon = icon
-  //     }
-  //   }
-  // }
   const updateNodeColormarker = (nodeId, color) => {
     console.log(nodeId, color)
     const _node = findNode(treeData.value, nodeId)
@@ -473,6 +462,7 @@
       currentOpenFile.value = {
         id: node.id,
         name: node.name,
+        type: node.type
       }
 
       // Emit an event to parent component with file info and content
@@ -481,6 +471,7 @@
         name: node.name,
         content: content,
       })
+      localStorage.setItem('currentOpenFile', JSON.stringify(currentOpenFile.value))
     } catch (error) {
       console.error('Error opening file:', error)
     }

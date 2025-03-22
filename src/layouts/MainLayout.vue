@@ -4,7 +4,9 @@
       <q-bar class="q-py-xs q-px-sm"
         :class="$q.dark.mode ? 'bg-dark border-bottom text-white' : 'bg-primary-dark text-grey-1'"
         style="height: 2.3rem">
-        <span class="font-medium">{{ appStore.app?.name }}</span>
+        <MainIcon :class="$q.platform.is.electron ? 'q-electron-drag' : ''" style="width: 1.5rem; height: 1.5rem;" />
+        <span class="font-small q-ml-sm unselected" :class="$q.platform.is.electron ? 'q-electron-drag' : ''">{{
+          appStore.app?.name }}</span>
         <div class="q-space full-height" :class="$q.platform.is.electron ? 'q-electron-drag' : ''"></div>
         <q-btn dense flat icon="mdi-theme-light-dark" @click="$q.dark.toggle()" />
         <AppControl v-if="$q.platform.is.electron" />
@@ -31,7 +33,7 @@
   import AppNavigation from '../components/AppNavigation.vue'
   import AppControl from '../components/AppControl.vue'
   import { appStore } from 'src/stores/stores'
-
+  import MainIcon from '../components/MainIcon.vue'
   const leftDrawerOpen = ref(true)
   const rightDrawerOpen = ref(false)
 

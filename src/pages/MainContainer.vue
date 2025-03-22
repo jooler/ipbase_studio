@@ -44,7 +44,7 @@
       </q-drawer>
 
       <q-page-container :class="$q.dark.mode ? 'bg-dark' : 'bg-grey-1'">
-        <q-page>
+        <q-page :style-fn="myTweak">
           <slot name="mainContent"></slot>
         </q-page>
       </q-page-container>
@@ -62,6 +62,11 @@ import { useDraggable } from '@vueuse/core'
 // 本地存储键
 const STORAGE_KEY = 'app_drawer_settings'
 
+
+const myTweak = (offset, height) => {
+  return { minHeight: offset && height ? `calc(${height - offset - 1}px)` : '100%' }
+}
+
 // 从localStorage获取抽屉设置或使用默认值
 const loadDrawerSettings = () => {
   try {
@@ -71,8 +76,8 @@ const loadDrawerSettings = () => {
       return {
         leftOpen: settings.leftOpen ?? true,
         rightOpen: settings.rightOpen ?? true,
-        leftWidth: settings.leftWidth ?? 200,
-        rightWidth: settings.rightWidth ?? 200,
+        leftWidth: settings.leftWidth ?? 220,
+        rightWidth: settings.rightWidth ?? 420,
       }
     }
   } catch (error) {
@@ -82,8 +87,8 @@ const loadDrawerSettings = () => {
   return {
     leftOpen: true,
     rightOpen: true,
-    leftWidth: 200,
-    rightWidth: 200,
+    leftWidth: 220,
+    rightWidth: 420,
   }
 }
 

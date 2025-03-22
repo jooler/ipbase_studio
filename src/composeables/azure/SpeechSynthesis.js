@@ -53,20 +53,6 @@ export function useSpeechSynthesis(options = {}) {
     return [...new Set(voiceList.map((item) => item.Locale?.toLowerCase()))].filter(Boolean)
   }
 
-  /**
-   * 根据区域码过滤语音条目
-   * @param {Array} voiceList 语音列表
-   * @param {string} targetLocale 目标区域码
-   * @returns {Array} 匹配的语音条目
-   */
-  const filterByLocale = (voiceList, targetLocale) => {
-    if (!targetLocale) return []
-    if (!Array.isArray(voiceList)) return []
-    const searchLocale = targetLocale.value?.toLowerCase()
-
-    return voiceList.filter((item) => item.Locale?.toLowerCase() === searchLocale)
-  }
-
   // 返回包含合成方法的对象
   return {
     updateConfig: (newConfig) => {
@@ -74,6 +60,5 @@ export function useSpeechSynthesis(options = {}) {
     },
     fetchVoiceList,
     getUniqueLocales,
-    filterByLocale,
   }
 }

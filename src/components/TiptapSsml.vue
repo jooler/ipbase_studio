@@ -10,8 +10,8 @@
         :should-show="shouldShowBubbleMenu">
         <q-card bordered :class="{ 'radius-sm': !hasTextSelection }">
           <q-toolbar v-if="hasTextSelection" class="transparent row gap-xs q-px-xs">
-            <q-select v-model="selectionVoice" :options="filteredVoiceOptions" label="语音" dense options-dense filled
-              square popup-content-style="z-index: 99999;" menu-anchor="bottom middle" menu-self="top middle"
+            <q-select v-model="selectionVoice" :options="voiceOptions" label="语音" dense options-dense filled square
+              popup-content-style="z-index: 99999;" menu-anchor="bottom middle" menu-self="top middle"
               class="full-width" style="min-width: 220px" @update:model-value="applyVoice"
               :disable="!hasTextSelection" />
           </q-toolbar>
@@ -107,26 +107,6 @@
   import { useTts } from '../composeables/azure/useTts'
 
   const props = defineProps({
-    selectedVoiceInitial: {
-      type: Object,
-      default: null,
-    },
-    selectedLocaleInitial: {
-      type: Object,
-      default: null,
-    },
-    rateInitial: {
-      type: [Number, Object],
-      default: 100,
-    },
-    pitchInitial: {
-      type: [Number, Object],
-      default: 100,
-    },
-    volumeInitial: {
-      type: Number,
-      default: 100,
-    },
     placeholder: {
       type: String,
       default: '请在此处输入文本内容...',
@@ -138,52 +118,23 @@
   })
 
   const emit = defineEmits([
-    'update:selectedVoice',
-    'update:selectedLocale',
-    'update:rate',
-    'update:pitch',
-    'update:volume',
     'saveContent',
     'isEmptyString',
   ])
 
   // Get data from useTts
   const {
-    voiceList,
+    selectedVoice,
+    selectedLocale,
+    volume,
+    selectedRateValue,
+    selectedPitchValue,
+    voiceOptions,
     setCustomPreviewText,
     customPreviewText,
     ssmlContent,
     jsonContent,
-    reLocalName,
   } = useTts()
-
-  // Global settings for SSML
-  const selectedLocale = ref(props.selectedLocaleInitial)
-  const selectedVoice = ref(props.selectedVoiceInitial)
-  const globalRate = ref(typeof props.rateInitial === 'number' ? props.rateInitial : 100)
-  const globalPitch = ref(typeof props.pitchInitial === 'number' ? props.pitchInitial : 100)
-  const globalVolume = ref(props.volumeInitial || 100)
-
-  // Filtered voice options based on selected locale
-  const filteredVoiceOptions = computed(() => {
-    if (!selectedLocale.value || !voiceList.value?.length) return []
-
-    const filtered = voiceList.value.filter(
-      (voice) => voice.Locale.toLowerCase() === selectedLocale.value.value.toLowerCase(),
-    )
-
-    return filtered.map((voice) => ({
-      label: `${reLocalName(voice.LocalName)} - ${voice.Gender === 'Male' ? '男声' : '女声'}`,
-      value: voice.ShortName,
-      ...voice,
-    }))
-  })
-
-  // Watch for locale changes
-  // function onLocaleChange() {
-  //   // Reset voice when locale changes
-  //   selectedVoice.value = null
-  // }
 
   // SSML attribute values for current selection
   const selectionVoice = ref(null)
@@ -531,7 +482,7 @@
       const attrs = editor.getAttributes('ssml')
 
       selectionVoice.value = attrs.voice
-        ? filteredVoiceOptions.value.find((option) => option.value === attrs.voice)
+        ? voiceOptions.value.find((option) => option.value === attrs.voice)
         : null
       selectionRate.value = attrs.rate || 100
       selectionPitch.value = attrs.pitch || 100
@@ -647,9 +598,9 @@
         if (node.type === 'paragraph') {
           // 获取段落级别的属性
           const paraVoice = node.attrs?.voice || selectedVoice.value?.value
-          const paraRate = node.attrs?.rate || globalRate.value
-          const paraPitch = node.attrs?.pitch || globalPitch.value
-          const paraVolume = node.attrs?.volume || globalVolume.value
+          const paraRate = node.attrs?.rate || selectedRateValue.value
+          const paraPitch = node.attrs?.pitch || selectedPitchValue.value
+          const paraVolume = node.attrs?.volume || volume.value
 
           // 段落级prosody属性
           const paraProsodyAttrs = []
@@ -815,70 +766,11 @@
 
   // Expose data for parent components
   watch(
-    [selectedLocale, selectedVoice, globalRate, globalPitch, globalVolume],
-    ([newLocale, newVoice, newRate, newPitch, newVolume]) => {
-      // Emit global setting changes to parent
-      if (newLocale) emit('update:selectedLocale', newLocale)
-      if (newVoice) emit('update:selectedVoice', newVoice)
-      emit('update:rate', newRate)
-      emit('update:pitch', newPitch)
-      emit('update:volume', newVolume)
+    [selectedLocale, selectedVoice, selectedRateValue, selectedPitchValue, volume],
+    () => {
+      syncSsml(editor.value)
     },
     { deep: true },
-  )
-
-  // Get locales and options from useTts
-  // const locales = computed(() => ttsLocales.value || [])
-
-  // Initialize global values
-  watch(
-    () => props.selectedLocaleInitial,
-    (newValue) => {
-      if (newValue) {
-        selectedLocale.value = newValue
-      }
-    },
-    { immediate: true },
-  )
-
-  watch(
-    () => props.selectedVoiceInitial,
-    (newValue) => {
-      if (newValue) {
-        selectedVoice.value = newValue
-      }
-    },
-    { immediate: true },
-  )
-
-  watch(
-    () => props.rateInitial,
-    (newValue) => {
-      if (typeof newValue === 'number') {
-        globalRate.value = newValue
-      }
-    },
-    { immediate: true },
-  )
-
-  watch(
-    () => props.pitchInitial,
-    (newValue) => {
-      if (typeof newValue === 'number') {
-        globalPitch.value = newValue
-      }
-    },
-    { immediate: true },
-  )
-
-  watch(
-    () => props.volumeInitial,
-    (newValue) => {
-      if (typeof newValue === 'number') {
-        globalVolume.value = newValue
-      }
-    },
-    { immediate: true },
   )
   // Also watch jsonContent from useTts for changes
   watch(

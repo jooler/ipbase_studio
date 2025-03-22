@@ -2,22 +2,23 @@
   <MainContainer>
     <template #headerLeft>
       <template v-if="currentFile">
-        <q-input v-if="mode === 'indexedDB'" v-model="currentFile.name" dense
-          class="q-mr-md border radius-xs overflow-hidden" :class="$q.dark.mode ? 'bg-grey-10' : 'bg-grey-2'"
-          input-class="q-px-md" style="max-width: 24rem" @update:model-value="updateFileName" />
-        <span v-else>{{ currentFile.name }}</span>
+        <span>{{ currentFile.name }}</span>
       </template>
     </template>
     <template #headerRight>
       <q-chip v-if="!canConvert" square flat label="请先设置语言、角色等" class="text-deep-orange" />
-      <q-btn v-else color="primary" unelevated padding="xs md xs sm" icon="graphic_eq"
-        :label="isConverting ? '' : '转换为语音'" @click="convertToSpeech" :loading="isConverting"
-        :disable="!canConvert || !ssmlContent || !hasContent" />
+      <q-btn v-else class="convert-botton text-white" :class="{ 'disabled': convertDisabled }" unelevated
+        padding="xs md xs sm" icon="graphic_eq" :label="isConverting ? '' : '转换为语音'" @click="convertToSpeech"
+        :loading="isConverting" :disable="convertDisabled">
+        <template #loading>
+          <q-spinner-dots color="white" size="1em" />
+        </template>
+      </q-btn>
     </template>
     <template #leftDrawerContent>
       <div class="column fit">
         <q-toolbar class="transparent border-bottom">
-          <q-tabs v-model="mode" dense align="left" :breakpoint="0">
+          <q-tabs v-model="mode" dense align="left" :breakpoint="0" @update:model-value="updateMode">
             <q-tab v-for="i in modes" :key="i.name" :name="i.name" :label="i.label" />
           </q-tabs>
         </q-toolbar>
@@ -30,12 +31,8 @@
     </template>
     <template #mainContent>
       <div class="absolute-full column">
-        <tiptap-ssml :key="currentFile?.id" :selected-voice-initial="selectedVoice"
-          :selected-locale-initial="selectedLocale" :rate-initial="selectedRateValue"
-          :pitch-initial="selectedPitchValue" :volume-initial="volume" @update:selected-voice="selectedVoice = $event"
-          @update:selected-locale="selectedLocale = $event" @update:rate="selectedRateValue = $event"
-          @update:pitch="selectedPitchValue = $event" @update:volume="volume = $event" @saveContent="saveCurrentFile"
-          @isEmptyString="isEmptyString" class="q-space" />
+        <tiptap-ssml :key="currentFile?.id" @saveContent="saveCurrentFile" @isEmptyString="isEmptyString"
+          class="q-space" />
       </div>
     </template>
     <template #rightDrawerContent>
@@ -59,7 +56,7 @@
               <q-card :id="`voice-card-${i.value}`" bordered flat class="hovered-item"
                 :class="{ 'border-deep-orange bg-deep-orange': selectedVoice?.value === i.value }">
                 <q-img :src="postImage(i)" :ratio="4 / 5" spinner-color="primary" spinner-size="82px"
-                  class="cursor-pointer" @click="selectedVoice = i">
+                  class="cursor-pointer" @click="setVoice(i)">
                   <q-tooltip class="no-padding transparent">
                     <q-card bordered>
                       <q-card-section class="q-pa-sm font-medium" :class="$q.dark.mode ? 'text-white' : 'text-black'">
@@ -72,7 +69,7 @@
                   </div>
                 </q-img>
                 <q-card-section class="row no-wrap items-center q-py-xs q-px-sm border-top cursor-pointer"
-                  @click="selectedVoice = i">
+                  @click="setVoice(i)">
                   <span class="q-py-xs">{{ reLocalName(i.LocalName) || i.DisplayName }}</span>
                 </q-card-section>
                 <q-card-section class="row no-wrap items-center q-px-xs q-pt-none q-pb-xs">
@@ -98,7 +95,7 @@
           <div class="row items-center">
             <q-icon name="speed" size="sm" class="q-mr-md" />
             <q-slider v-model.number="selectedRateValue" :min="50" :max="200" :step="5" dense label label-always
-              color="primary" class="col" @update:model-value="updateRate" />
+              color="primary" class="col" />
           </div>
         </div>
 
@@ -107,7 +104,7 @@
           <div class="row items-center">
             <q-icon name="tune" size="sm" class="q-mr-md" />
             <q-slider v-model.number="selectedPitchValue" :min="50" :max="150" :step="5" label dense label-always
-              color="primary" class="col" @update:model-value="updatePitch" />
+              color="primary" class="col" />
           </div>
         </div>
 
@@ -145,19 +142,17 @@
 
 <script setup>
   import MainContainer from './MainContainer.vue'
-  import { onMounted, watch, nextTick, ref, computed } from 'vue'
+  import { onMounted, watch, nextTick, ref, onBeforeMount, computed } from 'vue'
   import WaveSurfer from 'src/components/WaveSurfer.vue'
   import TiptapSsml from 'src/components/TiptapSsml.vue'
   import { useTts } from '../composeables/azure/useTts'
   import ProjectManager from 'src/components/ProjectManager.vue'
   import FileManager from 'src/components/FileManager.vue'
-  import { useProjectManager } from '../composeables/project/useProjectManager'
   import AudioWave from 'src/components/AudioWave.vue'
   import { useQuasar } from 'quasar'
 
   const $q = useQuasar();
 
-  const { currentOpenFile } = useProjectManager()
   // Ref for scroll area and project manager
   const voiceScrollArea = ref(null)
   const projectManager = ref(null)
@@ -166,11 +161,10 @@
     { name: 'indexedDB', label: '浏览器缓存' },
   ]
 
-  const canConvert = computed(() => selectedLocale.value && selectedVoice.value)
-
   // Use the TTS composable
   const {
     mode,
+    canConvert,
     ssmlContent,
     jsonContent,
     currentFile,
@@ -198,29 +192,17 @@
     saveConfig,
     restoreConfig,
     reLocalName,
+    setVoice
   } = useTts()
 
-  // Add updateFileName method to handle file name changes
-  const updateFileName = async (newName) => {
-    if (!currentFile.value || !projectManager.value) return
+  const convertDisabled = computed(() => !canConvert.value || !ssmlContent.value || !hasContent.value)
 
-    try {
-      // Call the updateNodeName method in ProjectManager component
-      const success = await projectManager.value.updateNodeName(currentFile.value.id, newName)
-
-      if (success) {
-        console.log('File name updated:', newName)
-        // Update currentOpenFile reference
-        if (currentOpenFile.value && currentOpenFile.value.id === currentFile.value.id) {
-          currentOpenFile.value.name = newName
-        }
-      } else {
-        console.error('Failed to update file name')
-      }
-    } catch (error) {
-      console.error('Error updating file name:', error)
-    }
+  const updateMode = () => {
+    localStorage.setItem('mode', mode.value)
   }
+  onBeforeMount(() => {
+    mode.value = localStorage.getItem('mode') || mode.value
+  })
 
   const hasContent = ref(false)
   const isEmptyString = (isEmpty) => {
@@ -383,5 +365,40 @@
 
   .border-bottom {
     border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+  }
+
+  .convert-botton {
+    background-image: linear-gradient(#121213, #121213), linear-gradient(#121213 50%, rgba(18, 18, 19, 0.6) 80%, rgba(18, 18, 19, 0)), linear-gradient(90deg, hsl(0deg 100% 63% / 33%), hsl(90deg 100% 63% / 21%), hsl(210deg 100% 63% / 46%), hsl(195deg 100% 63% / 46%), hsl(270, 100%, 63%));
+    border: calc(0.08* 1rem) solid transparent;
+    background-origin: border-box;
+    background-clip: padding-box, border-box, border-box;
+    transition-property: transform;
+    transition-duration: 300ms;
+    transition-delay: 300ms;
+    font-weight: 500;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+    padding-left: 1rem;
+    padding-right: 1rem;
+    background-size: 200%;
+    border-radius: 0.375rem;
+    white-space: nowrap;
+    background-color: transparent;
+    box-shadow: 2px 2px 12px -5px black;
+  }
+
+  .convert-botton:hover {
+    background-image: linear-gradient(#121213, #121213), linear-gradient(#121213 50%, rgba(18, 18, 19, 0.6) 80%, rgba(18, 18, 19, 0)), linear-gradient(90deg, hsl(0, 100%, 63%), hsl(90, 100%, 63%), hsl(210, 100%, 63%), hsl(195, 100%, 63%), hsl(270, 100%, 63%));
+  }
+
+  .convert-botton.disabled:hover {
+    background-image: linear-gradient(#121213, #121213), linear-gradient(#121213 50%, rgba(18, 18, 19, 0.6) 80%, rgba(18, 18, 19, 0)), linear-gradient(90deg, hsl(0deg 100% 63% / 13%), hsl(90deg 100% 63% / 28%), hsl(210, 100%, 63%), hsl(195, 100%, 63%), hsl(270, 100%, 63%));
+    cursor: not-allowed !important;
+  }
+
+  .convert-botton.disabled {
+    opacity: .6 !important;
   }
 </style>

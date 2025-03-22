@@ -50,7 +50,7 @@ export function useTts() {
   }
 
   // Initialize speech synthesis hook
-  const { updateConfig, fetchVoiceList, getUniqueLocales, filterByLocale } = useSpeechSynthesis({
+  const { updateConfig, fetchVoiceList, getUniqueLocales } = useSpeechSynthesis({
     speechVoiceName: selectedVoice.value?.value,
     useCustomEndpoint: useCustomEndpoint.value,
     customEndpoint: customEndpoint.value,
@@ -162,14 +162,17 @@ export function useTts() {
   }
 
   const voiceOptions = computed(() => {
-    const filtered = filterByLocale(voiceList.value, selectedLocale.value)
-    return filtered.map((voice) => {
-      return {
-        label: `${reLocalName(voice.LocalName)} - ${voice.Gender === 'Male' ? '男声' : '女声'}`,
-        value: voice.ShortName,
-        ...voice,
-      }
-    })
+    if (!selectedLocale.value || !voiceList.value?.length) return []
+
+    const filtered = voiceList.value.filter(
+      (voice) => voice.Locale.toLowerCase() === selectedLocale.value.value.toLowerCase(),
+    )
+
+    return filtered.map((voice) => ({
+      label: `${reLocalName(voice.LocalName)} - ${voice.Gender === 'Male' ? '男声' : '女声'}`,
+      value: voice.ShortName,
+      ...voice,
+    }))
   })
 
   // Watch configuration changes to update the hook
@@ -497,11 +500,16 @@ export function useTts() {
       return localName
     }
   }
+  const setVoice = (val) => {
+    selectedVoice.value = val
+  }
+  const canConvert = computed(() => selectedLocale.value && selectedVoice.value)
 
   // 创建实例
   const mode = ref('fileSystem')
   ttsInstance = {
     mode,
+    canConvert,
     // State
     textToConvert,
     ssmlContent,
@@ -536,6 +544,7 @@ export function useTts() {
     getPlayIcon,
     setCustomPreviewText,
     reLocalName,
+    setVoice,
   }
 
   return ttsInstance
