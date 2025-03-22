@@ -19,7 +19,7 @@ export default defineConfig((ctx) => {
     // app boot file (/src/boot)
     // --> boot files are part of "main.js"
     // https://v2.quasar.dev/quasar-cli-vite/boot-files
-    boot: ['i18n', 'axios', 'service'],
+    boot: ['i18n', 'axios', 'service', 'file-manager'],
 
     // https://v2.quasar.dev/quasar-cli-vite/quasar-config-file#css
     css: ['app.scss'],
@@ -121,10 +121,10 @@ export default defineConfig((ctx) => {
       //     ws: true,
       //   },
       // },
-      https: true,
-      key: fs.readFileSync('/Volumes/StoragePool/www/server.key'),
-      cert: fs.readFileSync('/Volumes/StoragePool/www/server.crt'),
-      ca: fs.readFileSync('/Volumes/StoragePool/www/ca.crt'),
+      // https: true,
+      // key: fs.readFileSync('/Volumes/StoragePool/www/server.key'),
+      // cert: fs.readFileSync('/Volumes/StoragePool/www/server.crt'),
+      // ca: fs.readFileSync('/Volumes/StoragePool/www/ca.crt'),
     },
 
     // https://v2.quasar.dev/quasar-cli-vite/quasar-config-file#framework

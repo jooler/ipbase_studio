@@ -6,11 +6,11 @@
           class="border-bottom"
           :class="$q.dark.mode ? 'bg-grey-10 text-grey-1' : 'bg-white text-grey-10'"
         >
-          <q-btn dense flat round icon="mdi-file-tree" class="q-mr-md" @click="toggleLeftDrawer" />
+          <q-btn dense flat icon="mdi-file-tree" class="q-mr-md" @click="toggleLeftDrawer" />
           <slot name="headerLeft"></slot>
           <q-space />
           <slot name="headerRight"></slot>
-          <q-btn dense flat round icon="mdi-tune" class="q-ml-md" @click="toggleRightDrawer" />
+          <q-btn dense flat icon="mdi-tune" class="q-ml-md" @click="toggleRightDrawer" />
         </q-toolbar>
       </q-header>
 
@@ -61,7 +61,6 @@ import { useDraggable } from '@vueuse/core'
 
 // 本地存储键
 const STORAGE_KEY = 'app_drawer_settings'
-
 
 const myTweak = (offset, height) => {
   return { minHeight: offset && height ? `calc(${height - offset - 1}px)` : '100%' }

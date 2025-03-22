@@ -17,6 +17,9 @@ const store = new Store({
   },
 })
 
+// 设置最大事件监听器数量，避免 MaxListenersExceededWarning
+app.setMaxListeners(15)
+
 initialize()
 // needed in case process is undefined under Linux
 const platform = process.platform || os.platform()
@@ -58,6 +61,9 @@ async function createWindow() {
   // 设置缩放因子
   mainWindow.webContents.setZoomFactor(zoomFactor)
 
+  // 增加 webContents 的最大监听器数量，避免 MaxListenersExceededWarning
+  mainWindow.webContents.setMaxListeners(15)
+
   enable(mainWindow.webContents)
 
   if (process.env.DEV) {
@@ -95,6 +101,16 @@ async function createWindow() {
   mainWindow.on('close', () => {
     if (!mainWindow.isDestroyed()) {
       saveWindowState()
+
+      // 清理所有 webContents 事件监听器
+      if (mainWindow.webContents) {
+        // 移除 zoom-changed 监听器
+        mainWindow.webContents.removeAllListeners('zoom-changed')
+        // 移除 devtools-opened 监听器
+        mainWindow.webContents.removeAllListeners('devtools-opened')
+        // 移除所有其他可能的监听器
+        mainWindow.webContents.removeAllListeners()
+      }
     }
     // 取消注册所有快捷键
     globalShortcut.unregisterAll()

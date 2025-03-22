@@ -1262,6 +1262,12 @@ body.body--dark .q-dialog-plugin .q-dialog__title {
 .unhover-op-8:hover {
   opacity: 1;
 }
+.unhover-op-5 {
+  opacity: 0.5;
+}
+.unhover-op-5:hover {
+  opacity: 1;
+}
 
 .bg-message {
   background-color: #d6edff;
@@ -1600,4 +1606,78 @@ body.body--dark .cdx-marker {
 
 .pt-toolbar {
   margin-top: 50px;
+}
+
+// SSML参数指示器 - 使用单独的属性来显示，而不是复杂的CSS选择器
+span[data-ssml] {
+  position: relative;
+  display: inline-block;
+  margin-top: 0; /* 因为我们已经在编辑器容器上添加了padding */
+}
+
+// 使用after伪元素显示SSML信息（在文本上方）
+span[data-ssml][data-ssml-info]:after {
+  content: attr(data-ssml-info);
+  position: absolute;
+  top: -20px;
+  left: 0;
+  font-size: 11px;
+  color: #04ab2b;
+  background-color: rgba(33, 150, 243, 0.08);
+  padding: 2px 4px;
+  border-radius: 4px;
+  margin-left: 0;
+  font-weight: bold;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  z-index: 10;
+  vertical-align: middle;
+}
+
+// 当没有参数信息时不显示指示器
+span[data-ssml][data-ssml-info='']:after {
+  display: none;
+}
+
+// 语音标记的下划线样式
+span[data-ssml][data-voice] {
+  border-bottom: 2px solid #2196f3;
+  padding-bottom: 1px;
+}
+
+// 发音指示器样式 - 保留在前面显示
+span[data-ssml][data-pronunciation]:before {
+  content: '发音: ' attr(data-pronunciation);
+  position: absolute;
+  top: -40px;
+  left: 0;
+  font-size: 11px;
+  color: #673ab7;
+  background-color: rgba(103, 58, 183, 0.1);
+  padding: 2px 4px;
+  border-radius: 4px;
+  margin-right: 0;
+  font-weight: bold;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  z-index: 10;
+  vertical-align: middle;
+}
+
+// 发音标记的下划线样式
+span[data-ssml][data-pronunciation] {
+  border-bottom: 2px dashed #673ab7;
+  padding-bottom: 1px;
+}
+
+// 确保SSML标签在不同编辑器视图中正确显示
+.tiptap-ssml-editor-space {
+  overflow: visible !important;
+}
+
+.tiptap p {
+  position: relative; /* 确保子元素的绝对定位相对于段落 */
+  margin-top: 22px; /* 为伪元素标签留出空间 */
 }

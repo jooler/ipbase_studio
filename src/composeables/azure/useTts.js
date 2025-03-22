@@ -65,18 +65,64 @@ export function useTts() {
 
   const showWave = ref()
   const processBase64Audio = (audioBase64Data) => {
-    const audioBase64 = audioBase64Data // 获取 Base64 字符串
-    // 将 Base64 转换回二进制数据
-    const binaryString = atob(audioBase64) // 解码 Base64
-    const len = binaryString.length
-    const bytes = new Uint8Array(len)
-    for (let i = 0; i < len; i++) {
-      bytes[i] = binaryString.charCodeAt(i) // 转换为字节数组
-    }
+    try {
+      // 如果数据为空，直接报错
+      if (!audioBase64Data) {
+        throw new Error('接收到的音频数据为空')
+      }
 
-    // 创建 Blob 对象
-    const audioBlob = new Blob([bytes], { type: 'audio/mpeg' })
-    return URL.createObjectURL(audioBlob)
+      // 输出Base64数据长度和前20个字符用于调试
+      console.log(
+        '收到音频数据长度:',
+        audioBase64Data.length,
+        '前缀:',
+        audioBase64Data.substring(0, 20) + '...',
+      )
+
+      // 清理Base64字符串，确保其格式正确
+      // 移除可能的头部如 "data:audio/mpeg;base64,"
+      let audioBase64 = audioBase64Data
+      if (audioBase64.includes('base64,')) {
+        audioBase64 = audioBase64.split('base64,')[1]
+        console.log('删除了data URI前缀')
+      }
+
+      // 确保字符串长度是4的倍数，如果不是，添加适当的填充
+      const originalLength = audioBase64.length
+      while (audioBase64.length % 4 !== 0) {
+        audioBase64 += '='
+      }
+
+      if (audioBase64.length !== originalLength) {
+        console.log('添加了Base64填充，增加了', audioBase64.length - originalLength, '个字符')
+      }
+
+      // 检查Base64字符集有效性
+      const base64Regex = /^[A-Za-z0-9+/]*={0,2}$/
+      if (!base64Regex.test(audioBase64)) {
+        console.error('Base64字符串包含无效字符')
+        // 不抛出错误，尝试继续处理
+      }
+
+      // 将 Base64 转换回二进制数据
+      const binaryString = atob(audioBase64) // 解码 Base64
+      const len = binaryString.length
+      console.log('解码后二进制数据长度:', len)
+
+      const bytes = new Uint8Array(len)
+      for (let i = 0; i < len; i++) {
+        bytes[i] = binaryString.charCodeAt(i) // 转换为字节数组
+      }
+
+      // 创建 Blob 对象
+      const audioBlob = new Blob([bytes], { type: 'audio/mpeg' })
+      const url = URL.createObjectURL(audioBlob)
+      console.log('成功创建音频URL:', url)
+      return url
+    } catch (error) {
+      console.error('处理音频数据失败:', error)
+      throw new Error(`音频数据处理失败: ${error.message}`)
+    }
   }
   // 预览语音功能
   const previewVoice = async (voice) => {
@@ -264,6 +310,43 @@ export function useTts() {
         throw new Error('SSML格式无效，必须包含<speak>标签')
       }
 
+      // 调试输出完整的SSML
+      console.log('完整的SSML内容:', ssmlContent.value)
+
+      // 检查phoneme元素的正确性
+      const phonemeRegex =
+        /<phoneme\s+alphabet=['"]([^'"]+)['"]\s+ph=['"]([^'"]+)['"]>([^<]*)<\/phoneme>/g
+      const phonemeTags = []
+      let match
+
+      // 重置正则表达式的lastIndex
+      phonemeRegex.lastIndex = 0
+
+      // 收集所有phoneme标签
+      while ((match = phonemeRegex.exec(ssmlContent.value)) !== null) {
+        const [fullTag, alphabet, ph, content] = match
+        phonemeTags.push({
+          fullTag,
+          alphabet,
+          ph,
+          content,
+        })
+
+        // 检查ph属性中的拼音格式是否正确
+        if (alphabet === 'sapi' && /[\u4e00-\u9fa5]/.test(content)) {
+          // 中文字符的SAPI格式需要检查
+          if (!/\s\d$/.test(ph)) {
+            console.warn(
+              `警告：phoneme标签的ph属性可能格式不正确，期望在拼音和声调数字之间有空格: ${ph}`,
+            )
+          }
+        }
+      }
+
+      if (phonemeTags.length > 0) {
+        console.log('检测到phoneme标签:', phonemeTags)
+      }
+
       // 深度验证SSML格式
       const validateSsml = (ssml) => {
         // 检查基本结构
@@ -420,11 +503,36 @@ export function useTts() {
           ssml: ssmlContent.value,
         },
       })
+
+      // 检查响应是否包含有效的音频数据
+      if (!res.data || !res.data.audioBase64) {
+        throw new Error('服务器返回的响应不包含有效的音频数据')
+      }
+
+      // 检查Base64字符串是否为空
+      if (!res.data.audioBase64.trim()) {
+        throw new Error('服务器返回的Base64音频数据为空')
+      }
+
       // 创建音频元素并播放
       audioUrl.value = processBase64Audio(res.data.audioBase64)
     } catch (error) {
       console.error('转换失败:', error)
-      alert(`转换失败: ${error.message}`)
+
+      // 提供更具体的错误信息
+      let errorMessage = error.message
+
+      // 如果是网络错误，提供更友好的提示
+      if (error.name === 'NetworkError' || error.message.includes('network')) {
+        errorMessage = '网络连接错误，请检查您的网络连接并重试'
+      }
+
+      // 如果是Base64解码错误，提供更具体的信息
+      if (error.message.includes('atob')) {
+        errorMessage = '服务器返回的音频数据格式不正确，请联系管理员'
+      }
+
+      alert(`转换失败: ${errorMessage}`)
     } finally {
       isConverting.value = false
     }

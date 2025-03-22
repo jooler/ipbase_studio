@@ -24,6 +24,7 @@
         "marked": "^15.0.7",
         "microsoft-cognitiveservices-speech-sdk": "^1.42.0",
         "pinia": "^3.0.1",
+        "pinyin-pro": "^3.26.0",
         "prosemirror-markdown": "^1.13.2",
         "prosemirror-model": "^1.25.0",
         "quasar": "^2.16.0",
@@ -1513,6 +1514,8 @@
     "pify": ["pify@2.3.0", "https://registry.npmmirror.com/pify/-/pify-2.3.0.tgz", {}, "sha512-udgsAY+fTnvv7kI7aaxbqwWNb0AHiB0qBO89PZKPkoTmGOgdbrHDKD+0B2X4uTfJ/FT1R09r9gTsjUjNJotuog=="],
 
     "pinia": ["pinia@3.0.1", "https://registry.npmmirror.com/pinia/-/pinia-3.0.1.tgz", { "dependencies": { "@vue/devtools-api": "^7.7.2" }, "peerDependencies": { "typescript": ">=4.4.4", "vue": "^2.7.0 || ^3.5.11" }, "optionalPeers": ["typescript"] }, "sha512-WXglsDzztOTH6IfcJ99ltYZin2mY8XZCXujkYWVIJlBjqsP6ST7zw+Aarh63E1cDVYeyUcPCxPHzJpEOmzB6Wg=="],
+
+    "pinyin-pro": ["pinyin-pro@3.26.0", "", {}, "sha512-HcBZZb0pvm0/JkPhZHWA5Hqp2cWHXrrW/WrV+OtaYYM+kf35ffvZppIUuGmyuQ7gDr1JDJKMkbEE+GN0wfMoGg=="],
 
     "pkce-challenge": ["pkce-challenge@4.1.0", "https://registry.npmmirror.com/pkce-challenge/-/pkce-challenge-4.1.0.tgz", {}, "sha512-ZBmhE1C9LcPoH9XZSdwiPtbPHZROwAnMy+kIFQVrnMCxY4Cudlz3gBOpzilgc0jOgRaiT3sIWfpMomW2ar2orQ=="],
 

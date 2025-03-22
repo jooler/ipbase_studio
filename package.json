@@ -5,12 +5,14 @@
   "productName": "IPBase Studio",
   "author": "JERR <jerr@foxmail.com>",
   "type": "module",
+  "homepage": "https://studio.yihu.team",
   "private": true,
   "scripts": {
     "lint": "eslint -c ./eslint.config.js \"./src*/**/*.{js,cjs,mjs,vue}\"",
     "format": "prettier --write \"**/*.{js,vue,scss,html,md,json}\" --ignore-path .gitignore",
     "test": "echo \"No test specified\" && exit 0",
     "dev": "quasar dev",
+    "dev:electron": "quasar dev -m electron",
     "build": "quasar build",
     "postinstall": "quasar prepare"
   },
@@ -35,6 +37,7 @@
     "marked": "^15.0.7",
     "microsoft-cognitiveservices-speech-sdk": "^1.42.0",
     "pinia": "^3.0.1",
+    "pinyin-pro": "^3.26.0",
     "prosemirror-markdown": "^1.13.2",
     "prosemirror-model": "^1.25.0",
     "quasar": "^2.16.0",
