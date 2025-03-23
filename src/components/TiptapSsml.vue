@@ -252,8 +252,10 @@ watch(
 watch(
   jsonContent,
   () => {
+    editor.value?.commands.setContent(jsonContent.value)
     // 使用从 useTiptapHelpers 抽离出来的 watchJsonContent 函数
     watchJsonContent(jsonContent, editor.value, {
+      // editor.value?.set
       onIsEmpty: (isEmpty) => emit('isEmptyString', isEmpty),
       updateSsmlOutput: (ssml) => (ssmlOutput.value = ssml),
       updateSsmlContent: (ssml) => (ssmlContent.value = ssml),

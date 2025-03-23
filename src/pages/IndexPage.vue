@@ -81,14 +81,20 @@
             </q-tooltip>
           </q-icon>
         </q-toolbar>
-        <ProjectManager
-          v-if="mode === 'indexedDB'"
-          ref="projectManager"
-          class="q-pa-sm"
-          @open-file="handleOpenFile"
-        />
-        <FileManager v-if="mode === 'fileSystem' && !isElectronEnv" />
-        <ElectronFileManager v-if="mode === 'fileSystem' && isElectronEnv" />
+        <keep-alive>
+          <ProjectManager
+            v-if="mode === 'indexedDB'"
+            ref="projectManager"
+            class="q-pa-sm"
+            @open-file="handleOpenFile"
+          />
+        </keep-alive>
+        <keep-alive>
+          <FileManager v-if="mode === 'fileSystem' && !isElectronEnv" />
+        </keep-alive>
+        <keep-alive>
+          <ElectronFileManager v-if="mode === 'fileSystem' && isElectronEnv" />
+        </keep-alive>
       </div>
     </template>
     <template #mainContent>
@@ -307,10 +313,10 @@ import FileManager from 'src/components/FileManager.vue'
 // import { ElectronFileManager } from 'src/components/index'
 import AudioWave from 'src/components/AudioWave.vue'
 import { useQuasar } from 'quasar'
-import { isElectron } from 'src/utils/environment'
+import { appStore } from 'src/stores/stores'
 
 const $q = useQuasar()
-const isElectronEnv = computed(() => isElectron())
+const isElectronEnv = computed(() => $q.platform.is.electron)
 
 // 动态加载ElectronFileManager组件
 const ElectronFileManager = markRaw({
@@ -506,10 +512,7 @@ const saveCurrentFile = async (val) => {
           const exists = await window.fileSystemAPI.fileExists(currentFile.value.path)
           if (!exists) {
             // 文件已被删除
-            $q.notify({
-              type: 'warning',
-              message: '文件已被删除或移动，无法保存',
-            })
+            appStore.showError('文件已被删除或移动，无法保存')
             // 重置当前文件
             currentFile.value = null
             jsonContent.value = {
@@ -522,13 +525,10 @@ const saveCurrentFile = async (val) => {
           const fileContent = JSON.stringify(val)
           // 使用Electron preload中暴露的API
           await window.fileSystemAPI.writeFile(currentFile.value.path, fileContent)
-          console.log('Saved file in Electron:', currentFile.value.name)
+          // console.log('Saved file in Electron:', currentFile.value.name)
         } catch (error) {
           console.error('Error saving file in Electron:', error)
-          $q.notify({
-            type: 'negative',
-            message: '保存文件失败: ' + error.message,
-          })
+          appStore.showError('保存文件失败: ' + error.message)
         }
       }
     } else {
@@ -546,10 +546,7 @@ const saveCurrentFile = async (val) => {
 
           if (!isValid) {
             // 文件句柄无效，可能是文件已被删除
-            $q.notify({
-              type: 'warning',
-              message: '文件访问权限丢失或文件已被删除，无法保存',
-            })
+            appStore.showError('文件访问权限丢失或文件已被删除，无法保存')
             // 重置当前文件
             currentFile.value = null
             jsonContent.value = {
@@ -574,10 +571,7 @@ const saveCurrentFile = async (val) => {
             error.message.includes('not found') ||
             error.message.includes('deleted')
           ) {
-            $q.notify({
-              type: 'warning',
-              message: '文件可能已被删除或移动，无法保存',
-            })
+            appStore.showError('文件可能已被删除或移动，无法保存')
             // 重置当前文件
             currentFile.value = null
             jsonContent.value = {
@@ -585,10 +579,7 @@ const saveCurrentFile = async (val) => {
               content: [{ type: 'paragraph', content: [] }],
             }
           } else {
-            $q.notify({
-              type: 'negative',
-              message: '保存文件失败: ' + error.message,
-            })
+            appStore.showError('保存文件失败: ' + error.message)
           }
         }
       }
@@ -693,10 +684,7 @@ const exportCurrentFile = async () => {
     // 检查window.fileSystemAPI是否存在
     if (!window.fileSystemAPI || !window.fileSystemAPI.saveFileDialog) {
       console.error('fileSystemAPI.saveFileDialog is not available')
-      $q.notify({
-        type: 'negative',
-        message: '导出功能在此环境下不可用',
-      })
+      appStore.showError('导出功能在此环境下不可用')
       return
     }
 
@@ -707,17 +695,11 @@ const exportCurrentFile = async () => {
 
     const result = await window.fileSystemAPI.saveFileDialog(defaultPath, fileContent)
     if (result) {
-      $q.notify({
-        type: 'positive',
-        message: `文件已保存至 ${result.name}`,
-      })
+      appStore.showSuccess(`文件已保存至 ${result.name}`)
     }
   } catch (error) {
     console.error('Error exporting file:', error)
-    $q.notify({
-      type: 'negative',
-      message: '导出文件失败: ' + error.message,
-    })
+    appStore.showError('导出文件失败: ' + error.message)
   }
 }
 </script>

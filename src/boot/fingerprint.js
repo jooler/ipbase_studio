@@ -4,6 +4,6 @@ import FingerprintJS from '@fingerprintjs/fingerprintjs'
   const result = await fp.get() // 获取指纹数据
   const fingerprint = result.visitorId // 提取唯一标识符
 
-  console.log('fingerprint', fingerprint)
+  //   console.log('fingerprint', fingerprint)
   window.fingerprint = fingerprint
 })()

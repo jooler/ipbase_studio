@@ -1,168 +1,178 @@
 <template>
   <div class="q-space column no-wrap text-white">
-    <q-btn
-      v-if="root.length === 0"
-      color="primary"
-      unelevated
-      icon="mdi-file-tree"
-      label="选择文件夹"
-      @click="chooseDir()"
-    />
-    <q-scroll-area v-else class="q-space">
-      <q-tree
-        ref="treeRef"
-        :nodes="root"
-        node-key="id"
-        text-color="white"
-        selected-color="deep-orange"
-        v-model:selected="selected"
-        v-model:expanded="expanded"
-      >
-        <template v-slot:default-header="prop">
-          <div class="row items-center full-width" @click="readFile(prop.node.path)">
-            <q-icon :name="prop.node.icon || 'share'" color="orange" size="28px" class="q-mr-sm" />
-            <div>{{ prop.node.label }}</div>
-            <q-popup-proxy
-              ref="contextMenuRef"
-              context-menu
-              class="shadow-24 radius-sm"
-              @hide="contextMenuHide()"
-            >
-              <q-list bordered dense class="q-pa-xs radius-sm" style="min-width: 12rem">
-                <template v-if="prop.node.isDirectory && !renameNode && !createInNode">
-                  <q-item
-                    clickable
-                    v-close-popup
-                    class="radius-xs"
-                    @click="showCreate(prop.node, 'file')"
-                  >
-                    <q-item-section side>
-                      <q-icon name="edit_note" />
-                    </q-item-section>
-                    <q-item-section>新建文件</q-item-section>
-                  </q-item>
-                  <q-item
-                    clickable
-                    v-close-popup
-                    class="radius-xs"
-                    @click="showCreate(prop.node, 'directory')"
-                  >
-                    <q-item-section side>
-                      <q-icon name="create_new_folder" />
-                    </q-item-section>
-                    <q-item-section>新建文件夹</q-item-section>
-                  </q-item>
-                  <q-separator class="op-5 q-my-xs" />
-                </template>
-                <q-item
-                  v-if="createInNode === prop.node.id"
-                  class="no-padding overflow-hidden radius-xs"
-                >
-                  <q-item-section>
-                    <q-input
-                      v-model="inputText"
-                      type="text"
-                      autofocus
-                      dense
-                      filled
-                      @keydown.enter="create(prop.node, inputText)"
-                    >
-                      <template v-if="hasSameName(prop.node, inputText)" v-slot:hint>
-                        存在同名！
-                      </template>
-                    </q-input>
-                  </q-item-section>
-                </q-item>
-                <q-item
-                  v-if="renameNode !== prop.node.id"
-                  clickable
-                  v-close-popup
-                  class="radius-xs"
-                  @click="showRename(prop)"
-                >
-                  <q-item-section side>
-                    <i class="q-icon text-brand-primary" aria-hidden="true">
-                      <svg viewBox="0 0 24 24">
-                        <path
-                          d="M17,7H22V17H17V19A1,1 0 0,0 18,20H20V22H17.5C16.95,22 16,21.55 16,21C16,21.55 15.05,22 14.5,22H12V20H14A1,1 0 0,0 15,19V5A1,1 0 0,0 14,4H12V2H14.5C15.05,2 16,2.45 16,3C16,2.45 16.95,2 17.5,2H20V4H18A1,1 0 0,0 17,5V7M2,7H13V9H4V15H13V17H2V7M20,15V9H17V15H20Z"
-                        ></path>
-                      </svg>
-                    </i>
-                  </q-item-section>
-                  <q-item-section>重命名</q-item-section>
-                </q-item>
-                <q-item v-else class="no-padding overflow-hidden radius-xs">
-                  <q-item-section>
-                    <q-input
-                      v-model="inputText"
-                      type="text"
-                      autofocus
-                      dense
-                      filled
-                      @keydown.enter="rename(prop.node, inputText)"
-                    >
-                      <template v-if="hasSameName(prop.node, inputText)" v-slot:hint>
-                        存在同名！
-                      </template>
-                    </q-input>
-                  </q-item-section>
-                </q-item>
-                <q-item
-                  clickable
-                  v-close-popup
-                  class="radius-xs"
-                  @click="openInExplorer(prop.node)"
-                >
-                  <q-item-section side>
-                    <q-icon name="folder_open" />
-                  </q-item-section>
-                  <q-item-section>
-                    <template v-if="isMac">在Finder中打开</template>
-                    <template v-else-if="isLinux">在文件管理器中打开</template>
-                    <template v-else>在资源管理器中打开</template>
-                  </q-item-section>
-                </q-item>
-                <q-separator class="op-5 q-my-xs" />
-                <q-item
-                  v-if="!prop.node.parentId"
-                  clickable
-                  v-close-popup
-                  class="radius-xs text-warning"
-                  @click="removeFromRoot(prop.node)"
-                >
-                  <q-item-section side>
-                    <q-icon name="mdi-link-off" color="warning" />
-                  </q-item-section>
-                  <q-item-section>从列表中移除</q-item-section>
-                </q-item>
-                <q-item
-                  v-if="prop.node.parentId"
-                  clickable
-                  v-close-popup
-                  class="radius-xs text-negative"
-                  @click="deleteItem(prop.node)"
-                >
-                  <q-item-section side>
-                    <q-icon name="close" color="negative" />
-                  </q-item-section>
-                  <q-item-section>删除</q-item-section>
-                </q-item>
-              </q-list>
-            </q-popup-proxy>
-          </div>
-        </template>
-      </q-tree>
-    </q-scroll-area>
-
-    <!-- 底部添加文件夹按钮 -->
-    <div v-if="root.length > 0" class="q-pa-xs full-width q-mt-md">
+    <template v-if="rootRestored">
       <q-btn
-        flat
-        icon="mdi-folder-plus"
-        class="full-width border unhover-op-5 transition"
-        label="添加文件夹"
+        v-if="root.length === 0"
+        color="primary"
+        unelevated
+        icon="mdi-file-tree"
+        label="选择文件夹"
         @click="chooseDir()"
       />
+      <q-scroll-area v-else class="q-space">
+        <q-tree
+          ref="treeRef"
+          :nodes="root"
+          node-key="id"
+          text-color="white"
+          selected-color="deep-orange"
+          v-model:selected="selected"
+          v-model:expanded="expanded"
+        >
+          <template v-slot:default-header="prop">
+            <div class="row items-center full-width" @click="readFile(prop.node.path)">
+              <q-icon
+                :name="prop.node.icon || 'share'"
+                color="orange"
+                size="28px"
+                class="q-mr-sm"
+              />
+              <div>{{ prop.node.label }}</div>
+              <q-popup-proxy
+                ref="contextMenuRef"
+                context-menu
+                class="shadow-24 radius-sm"
+                @hide="contextMenuHide()"
+              >
+                <q-list bordered dense class="q-pa-xs radius-sm" style="min-width: 12rem">
+                  <template v-if="prop.node.isDirectory && !renameNode && !createInNode">
+                    <q-item
+                      clickable
+                      v-close-popup
+                      class="radius-xs"
+                      @click="showCreate(prop.node, 'file')"
+                    >
+                      <q-item-section side>
+                        <q-icon name="edit_note" />
+                      </q-item-section>
+                      <q-item-section>新建文件</q-item-section>
+                    </q-item>
+                    <q-item
+                      clickable
+                      v-close-popup
+                      class="radius-xs"
+                      @click="showCreate(prop.node, 'directory')"
+                    >
+                      <q-item-section side>
+                        <q-icon name="create_new_folder" />
+                      </q-item-section>
+                      <q-item-section>新建文件夹</q-item-section>
+                    </q-item>
+                    <q-separator class="op-5 q-my-xs" />
+                  </template>
+                  <q-item
+                    v-if="createInNode === prop.node.id"
+                    class="no-padding overflow-hidden radius-xs"
+                  >
+                    <q-item-section>
+                      <q-input
+                        v-model="inputText"
+                        type="text"
+                        autofocus
+                        dense
+                        filled
+                        @keydown.enter="create(prop.node, inputText)"
+                      >
+                        <template v-if="hasSameName(prop.node, inputText)" v-slot:hint>
+                          存在同名！
+                        </template>
+                      </q-input>
+                    </q-item-section>
+                  </q-item>
+                  <q-item
+                    v-if="renameNode !== prop.node.id"
+                    clickable
+                    v-close-popup
+                    class="radius-xs"
+                    @click="showRename(prop)"
+                  >
+                    <q-item-section side>
+                      <i class="q-icon text-brand-primary" aria-hidden="true">
+                        <svg viewBox="0 0 24 24">
+                          <path
+                            d="M17,7H22V17H17V19A1,1 0 0,0 18,20H20V22H17.5C16.95,22 16,21.55 16,21C16,21.55 15.05,22 14.5,22H12V20H14A1,1 0 0,0 15,19V5A1,1 0 0,0 14,4H12V2H14.5C15.05,2 16,2.45 16,3C16,2.45 16.95,2 17.5,2H20V4H18A1,1 0 0,0 17,5V7M2,7H13V9H4V15H13V17H2V7M20,15V9H17V15H20Z"
+                          ></path>
+                        </svg>
+                      </i>
+                    </q-item-section>
+                    <q-item-section>重命名</q-item-section>
+                  </q-item>
+                  <q-item v-else class="no-padding overflow-hidden radius-xs">
+                    <q-item-section>
+                      <q-input
+                        v-model="inputText"
+                        type="text"
+                        autofocus
+                        dense
+                        filled
+                        @keydown.enter="rename(prop.node, inputText)"
+                      >
+                        <template v-if="hasSameName(prop.node, inputText)" v-slot:hint>
+                          存在同名！
+                        </template>
+                      </q-input>
+                    </q-item-section>
+                  </q-item>
+                  <q-item
+                    clickable
+                    v-close-popup
+                    class="radius-xs"
+                    @click="openInExplorer(prop.node)"
+                  >
+                    <q-item-section side>
+                      <q-icon name="folder_open" />
+                    </q-item-section>
+                    <q-item-section>
+                      <template v-if="isMac">在Finder中打开</template>
+                      <template v-else-if="isLinux">在文件管理器中打开</template>
+                      <template v-else>在资源管理器中打开</template>
+                    </q-item-section>
+                  </q-item>
+                  <q-separator class="op-5 q-my-xs" />
+                  <q-item
+                    v-if="!prop.node.parentId"
+                    clickable
+                    v-close-popup
+                    class="radius-xs text-warning"
+                    @click="removeFromRoot(prop.node)"
+                  >
+                    <q-item-section side>
+                      <q-icon name="mdi-link-off" color="warning" />
+                    </q-item-section>
+                    <q-item-section>从列表中移除</q-item-section>
+                  </q-item>
+                  <q-item
+                    v-if="prop.node.parentId"
+                    clickable
+                    v-close-popup
+                    class="radius-xs text-negative"
+                    @click="deleteItem(prop.node)"
+                  >
+                    <q-item-section side>
+                      <q-icon name="close" color="negative" />
+                    </q-item-section>
+                    <q-item-section>删除</q-item-section>
+                  </q-item>
+                </q-list>
+              </q-popup-proxy>
+            </div>
+          </template>
+        </q-tree>
+      </q-scroll-area>
+
+      <!-- 底部添加文件夹按钮 -->
+      <div v-if="root.length > 0" class="q-pa-xs full-width q-mt-md">
+        <q-btn
+          flat
+          icon="mdi-folder-plus"
+          class="full-width border unhover-op-5 transition"
+          label="添加文件夹"
+          @click="chooseDir()"
+        />
+      </div>
+    </template>
+    <div v-else class="q-space column flex-center">
+      <q-spinner-dots color="primary" size="3rem" :thickness="5" />
     </div>
   </div>
 </template>
@@ -185,7 +195,6 @@ const path = pathUtils
 
 const root = ref([])
 const nodeMap = ref({})
-const treeRef = useTemplateRef('treeRef')
 const contextMenuRef = useTemplateRef('contextMenuRef')
 const selected = ref(null)
 const expanded = ref([])
@@ -198,6 +207,8 @@ const platform = ref(null)
 const isMac = ref(false)
 const isWindows = ref(false)
 const isLinux = ref(false)
+
+const rootRestored = ref(false)
 
 // 在组件加载时获取平台信息
 onMounted(async () => {
@@ -229,6 +240,7 @@ onMounted(async () => {
       console.warn('Failed to load directory:', dirPath, error)
     }
   }
+  rootRestored.value = true
 })
 
 // 监视当前文件是否被删除
