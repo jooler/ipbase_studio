@@ -3,6 +3,7 @@ import { useSpeechSynthesis } from './SpeechSynthesis'
 import localeMappings from '../../localeMappings.js'
 import localforage from 'localforage'
 import { api } from 'src/boot/axios'
+import { appStore } from 'src/stores/stores'
 
 // 创建一个单例实例
 let ttsInstance = null
@@ -297,7 +298,7 @@ export function useTts() {
   // Azure text-to-speech function
   const convertToSpeech = async () => {
     if (!ssmlContent.value) {
-      alert('请输入文本')
+      appStore.showError('请输入文本')
       return
     }
     document.activeElement.blur() // 让元素失焦，放置用户按下空格重新请求
@@ -311,7 +312,7 @@ export function useTts() {
       }
 
       // 调试输出完整的SSML
-      console.log('完整的SSML内容:', ssmlContent.value)
+      // console.log('完整的SSML内容:', ssmlContent.value)
 
       // 检查phoneme元素的正确性
       const phonemeRegex =
@@ -489,7 +490,7 @@ export function useTts() {
       }
 
       // 输出SSML内容以便调试
-      console.log('Sending SSML to API:', ssmlContent.value)
+      // console.log('Sending SSML to API:', ssmlContent.value)
 
       // 确保选择了有效的语音
       if (selectedVoice.value && selectedVoice.value.value) {
@@ -514,9 +515,13 @@ export function useTts() {
         throw new Error('服务器返回的Base64音频数据为空')
       }
 
-      // 创建音频元素并播放
       audioUrl.value = processBase64Audio(res.data.audioBase64)
     } catch (error) {
+      if (error.response?.data?.error) {
+        console.log('error', error.response?.data?.error)
+        appStore.showError(error.response?.data?.error?.message || '请求失败，请刷新再试')
+        return
+      }
       console.error('转换失败:', error)
 
       // 提供更具体的错误信息
@@ -532,7 +537,7 @@ export function useTts() {
         errorMessage = '服务器返回的音频数据格式不正确，请联系管理员'
       }
 
-      alert(`转换失败: ${errorMessage}`)
+      appStore.showError(`转换失败: ${errorMessage}`)
     } finally {
       isConverting.value = false
     }

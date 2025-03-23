@@ -18,6 +18,7 @@
   },
   "dependencies": {
     "@electron/remote": "^2.1.2",
+    "@fingerprintjs/fingerprintjs": "^4.6.1",
     "@meersagor/wavesurfer-vue": "^1.0.0",
     "@quasar/extras": "^1.16.4",
     "@tiptap/core": "^2.11.5",

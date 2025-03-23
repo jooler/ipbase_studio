@@ -82,15 +82,6 @@
           >
             <q-tooltip>音量</q-tooltip>
           </q-btn>
-          <q-btn
-            color="green"
-            @click="setSelectedTextAsPreview(editor)"
-            icon="record_voice_over"
-            unelevated
-            :disable="!hasTextSelection"
-          >
-            <q-tooltip>设为预览文本</q-tooltip>
-          </q-btn>
         </template>
         <q-list v-if="!hasTextSelection" dense class="column gap-xs">
           <q-item
@@ -145,6 +136,7 @@
             <q-item-section class="text-negative">删除停顿</q-item-section>
           </q-item>
         </q-list>
+        <q-space />
         <q-btn
           v-if="hasTextSelection"
           color="negative"

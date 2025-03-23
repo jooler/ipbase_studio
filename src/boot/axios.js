@@ -18,6 +18,7 @@ export default defineBoot(({ app }) => {
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
+    config.headers['X-Browser-Fingerprint'] = window.fingerprint
     return config
   })
   // for use inside Vue files (Options API) through this.$axios and this.$api

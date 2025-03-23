@@ -5,7 +5,6 @@ import { defineConfig } from '#q-app/wrappers'
 import { fileURLToPath } from 'node:url'
 // import { VueMcp } from 'vite-plugin-vue-mcp'
 // import { loadEnv } from 'vite'
-import fs from 'fs'
 
 export default defineConfig((ctx) => {
   // Load env file based on mode
@@ -19,7 +18,7 @@ export default defineConfig((ctx) => {
     // app boot file (/src/boot)
     // --> boot files are part of "main.js"
     // https://v2.quasar.dev/quasar-cli-vite/boot-files
-    boot: ['i18n', 'axios', 'service', 'file-manager'],
+    boot: ['i18n', 'fingerprint', 'axios', 'service', 'file-manager'],
 
     // https://v2.quasar.dev/quasar-cli-vite/quasar-config-file#css
     css: ['app.scss'],

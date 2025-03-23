@@ -272,16 +272,23 @@
       <q-bar v-if="ssmlContent?.length" dark class="transparent border-top">
         <q-space />
         <span
-          class="font-small"
+          class="font-small unselected"
           :class="
-            ssmlContent.length / 100000 > 0.9
+            ssmlContent.length / 10000 > 0.9
               ? 'text-negative'
-              : ssmlContent.length / 100000 > 0.7
+              : ssmlContent.length / 10000 > 0.7
                 ? 'text-orange'
-                : 'op-5'
+                : 'op-3'
           "
         >
-          {{ ssmlContent.length }} / 100000
+          {{ ssmlContent.length }} / 10000
+          <q-tooltip class="no-padding transparent shadow-24">
+            <q-card bordered>
+              <q-card-section>
+                <div class="text-subtitle2">免费用户每日限额 10000 字符</div>
+              </q-card-section>
+            </q-card>
+          </q-tooltip>
         </span>
       </q-bar>
     </template>

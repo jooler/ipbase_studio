@@ -1,4 +1,5 @@
 import { defineStore, acceptHMRUpdate } from 'pinia'
+import { Notify } from 'quasar'
 
 export const useAppStore = defineStore('app', {
   state: () => ({
@@ -15,6 +16,7 @@ export const useAppStore = defineStore('app', {
       azureTtsKey: '',
       azureTtsRegion: 'eastasia',
     },
+    error: null,
   }),
 
   getters: {
@@ -24,6 +26,13 @@ export const useAppStore = defineStore('app', {
   actions: {
     setApp(app) {
       this.app = app
+    },
+    showError(error) {
+      Notify.create({
+        message: error,
+        color: 'negative',
+        position: 'top',
+      })
     },
   },
 })

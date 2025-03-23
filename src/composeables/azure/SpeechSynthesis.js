@@ -21,7 +21,7 @@ export function useSpeechSynthesis(options = {}) {
     }
     const cache = await localforage.getItem('voiceList')
     if (cache?.dateset) {
-      if (checkExpire(cache.updatedAt, 1000 * 60 * 60 * 24)) {
+      if (checkExpire(cache.updatedAt, 1000 * 60 * 60)) {
         config.voiceList = cache.dateset
         return config.voiceList
       }
