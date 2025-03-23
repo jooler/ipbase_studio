@@ -1,178 +1,159 @@
 <template>
   <div class="q-space column no-wrap text-white">
-    <template v-if="rootRestored">
+    <q-scroll-area v-if="fileManagerStore.root.length > 0" class="q-space">
+      <q-tree
+        ref="treeRef"
+        :nodes="fileManagerStore.root"
+        node-key="id"
+        text-color="white"
+        selected-color="deep-orange"
+        v-model:selected="fileManagerStore.selected"
+        v-model:expanded="fileManagerStore.expanded"
+      >
+        <template v-slot:default-header="prop">
+          <div class="row items-center full-width" @click="readFile(prop.node.path)">
+            <q-icon :name="prop.node.icon || 'share'" color="orange" size="28px" class="q-mr-sm" />
+            <div>{{ prop.node.label }}</div>
+            <q-popup-proxy
+              ref="contextMenuRef"
+              context-menu
+              class="shadow-24 radius-sm"
+              @hide="contextMenuHide()"
+            >
+              <q-list bordered dense class="q-pa-xs radius-sm" style="min-width: 12rem">
+                <template v-if="prop.node.isDirectory && !renameNode && !createInNode">
+                  <q-item
+                    clickable
+                    v-close-popup
+                    class="radius-xs"
+                    @click="showCreate(prop.node, 'file')"
+                  >
+                    <q-item-section side>
+                      <q-icon name="edit_note" />
+                    </q-item-section>
+                    <q-item-section>新建文件</q-item-section>
+                  </q-item>
+                  <q-item
+                    clickable
+                    v-close-popup
+                    class="radius-xs"
+                    @click="showCreate(prop.node, 'directory')"
+                  >
+                    <q-item-section side>
+                      <q-icon name="create_new_folder" />
+                    </q-item-section>
+                    <q-item-section>新建文件夹</q-item-section>
+                  </q-item>
+                  <q-separator class="op-5 q-my-xs" />
+                </template>
+                <q-item
+                  v-if="createInNode === prop.node.id"
+                  class="no-padding overflow-hidden radius-xs"
+                >
+                  <q-item-section>
+                    <q-input
+                      v-model="inputText"
+                      type="text"
+                      autofocus
+                      dense
+                      filled
+                      @keydown.enter="create(prop.node, inputText)"
+                    >
+                      <template v-if="hasSameName(prop.node, inputText)" v-slot:hint>
+                        存在同名！
+                      </template>
+                    </q-input>
+                  </q-item-section>
+                </q-item>
+                <q-item
+                  v-if="renameNode !== prop.node.id"
+                  clickable
+                  v-close-popup
+                  class="radius-xs"
+                  @click="showRename(prop)"
+                >
+                  <q-item-section side>
+                    <i class="q-icon text-brand-primary" aria-hidden="true">
+                      <svg viewBox="0 0 24 24">
+                        <path
+                          d="M17,7H22V17H17V19A1,1 0 0,0 18,20H20V22H17.5C16.95,22 16,21.55 16,21C16,21.55 15.05,22 14.5,22H12V20H14A1,1 0 0,0 15,19V5A1,1 0 0,0 14,4H12V2H14.5C15.05,2 16,2.45 16,3C16,2.45 16.95,2 17.5,2H20V4H18A1,1 0 0,0 17,5V7M2,7H13V9H4V15H13V17H2V7M20,15V9H17V15H20Z"
+                        ></path>
+                      </svg>
+                    </i>
+                  </q-item-section>
+                  <q-item-section>重命名</q-item-section>
+                </q-item>
+                <q-item v-else class="no-padding overflow-hidden radius-xs">
+                  <q-item-section>
+                    <q-input
+                      v-model="inputText"
+                      type="text"
+                      autofocus
+                      dense
+                      filled
+                      @keydown.enter="rename(prop.node, inputText)"
+                    >
+                      <template v-if="hasSameName(prop.node, inputText)" v-slot:hint>
+                        存在同名！
+                      </template>
+                    </q-input>
+                  </q-item-section>
+                </q-item>
+                <q-item
+                  clickable
+                  v-close-popup
+                  class="radius-xs"
+                  @click="openInExplorer(prop.node)"
+                >
+                  <q-item-section side>
+                    <q-icon name="folder_open" />
+                  </q-item-section>
+                  <q-item-section>
+                    <template v-if="isMac">在Finder中打开</template>
+                    <template v-else-if="isLinux">在文件管理器中打开</template>
+                    <template v-else>在资源管理器中打开</template>
+                  </q-item-section>
+                </q-item>
+                <q-separator class="op-5 q-my-xs" />
+                <q-item
+                  v-if="!prop.node.parentId"
+                  clickable
+                  v-close-popup
+                  class="radius-xs text-warning"
+                  @click="removeFromRoot(prop.node)"
+                >
+                  <q-item-section side>
+                    <q-icon name="mdi-link-off" color="warning" />
+                  </q-item-section>
+                  <q-item-section>从列表中移除</q-item-section>
+                </q-item>
+                <q-item
+                  v-if="prop.node.parentId"
+                  clickable
+                  v-close-popup
+                  class="radius-xs text-negative"
+                  @click="deleteItem(prop.node)"
+                >
+                  <q-item-section side>
+                    <q-icon name="close" color="negative" />
+                  </q-item-section>
+                  <q-item-section>删除</q-item-section>
+                </q-item>
+              </q-list>
+            </q-popup-proxy>
+          </div>
+        </template>
+      </q-tree>
+    </q-scroll-area>
+
+    <div class="q-pa-sm">
       <q-btn
-        v-if="root.length === 0"
-        color="primary"
         unelevated
         icon="mdi-file-tree"
         label="选择文件夹"
+        class="full-width unhover-op-5 border transition"
         @click="chooseDir()"
       />
-      <q-scroll-area v-else class="q-space">
-        <q-tree
-          ref="treeRef"
-          :nodes="root"
-          node-key="id"
-          text-color="white"
-          selected-color="deep-orange"
-          v-model:selected="selected"
-          v-model:expanded="expanded"
-        >
-          <template v-slot:default-header="prop">
-            <div class="row items-center full-width" @click="readFile(prop.node.path)">
-              <q-icon
-                :name="prop.node.icon || 'share'"
-                color="orange"
-                size="28px"
-                class="q-mr-sm"
-              />
-              <div>{{ prop.node.label }}</div>
-              <q-popup-proxy
-                ref="contextMenuRef"
-                context-menu
-                class="shadow-24 radius-sm"
-                @hide="contextMenuHide()"
-              >
-                <q-list bordered dense class="q-pa-xs radius-sm" style="min-width: 12rem">
-                  <template v-if="prop.node.isDirectory && !renameNode && !createInNode">
-                    <q-item
-                      clickable
-                      v-close-popup
-                      class="radius-xs"
-                      @click="showCreate(prop.node, 'file')"
-                    >
-                      <q-item-section side>
-                        <q-icon name="edit_note" />
-                      </q-item-section>
-                      <q-item-section>新建文件</q-item-section>
-                    </q-item>
-                    <q-item
-                      clickable
-                      v-close-popup
-                      class="radius-xs"
-                      @click="showCreate(prop.node, 'directory')"
-                    >
-                      <q-item-section side>
-                        <q-icon name="create_new_folder" />
-                      </q-item-section>
-                      <q-item-section>新建文件夹</q-item-section>
-                    </q-item>
-                    <q-separator class="op-5 q-my-xs" />
-                  </template>
-                  <q-item
-                    v-if="createInNode === prop.node.id"
-                    class="no-padding overflow-hidden radius-xs"
-                  >
-                    <q-item-section>
-                      <q-input
-                        v-model="inputText"
-                        type="text"
-                        autofocus
-                        dense
-                        filled
-                        @keydown.enter="create(prop.node, inputText)"
-                      >
-                        <template v-if="hasSameName(prop.node, inputText)" v-slot:hint>
-                          存在同名！
-                        </template>
-                      </q-input>
-                    </q-item-section>
-                  </q-item>
-                  <q-item
-                    v-if="renameNode !== prop.node.id"
-                    clickable
-                    v-close-popup
-                    class="radius-xs"
-                    @click="showRename(prop)"
-                  >
-                    <q-item-section side>
-                      <i class="q-icon text-brand-primary" aria-hidden="true">
-                        <svg viewBox="0 0 24 24">
-                          <path
-                            d="M17,7H22V17H17V19A1,1 0 0,0 18,20H20V22H17.5C16.95,22 16,21.55 16,21C16,21.55 15.05,22 14.5,22H12V20H14A1,1 0 0,0 15,19V5A1,1 0 0,0 14,4H12V2H14.5C15.05,2 16,2.45 16,3C16,2.45 16.95,2 17.5,2H20V4H18A1,1 0 0,0 17,5V7M2,7H13V9H4V15H13V17H2V7M20,15V9H17V15H20Z"
-                          ></path>
-                        </svg>
-                      </i>
-                    </q-item-section>
-                    <q-item-section>重命名</q-item-section>
-                  </q-item>
-                  <q-item v-else class="no-padding overflow-hidden radius-xs">
-                    <q-item-section>
-                      <q-input
-                        v-model="inputText"
-                        type="text"
-                        autofocus
-                        dense
-                        filled
-                        @keydown.enter="rename(prop.node, inputText)"
-                      >
-                        <template v-if="hasSameName(prop.node, inputText)" v-slot:hint>
-                          存在同名！
-                        </template>
-                      </q-input>
-                    </q-item-section>
-                  </q-item>
-                  <q-item
-                    clickable
-                    v-close-popup
-                    class="radius-xs"
-                    @click="openInExplorer(prop.node)"
-                  >
-                    <q-item-section side>
-                      <q-icon name="folder_open" />
-                    </q-item-section>
-                    <q-item-section>
-                      <template v-if="isMac">在Finder中打开</template>
-                      <template v-else-if="isLinux">在文件管理器中打开</template>
-                      <template v-else>在资源管理器中打开</template>
-                    </q-item-section>
-                  </q-item>
-                  <q-separator class="op-5 q-my-xs" />
-                  <q-item
-                    v-if="!prop.node.parentId"
-                    clickable
-                    v-close-popup
-                    class="radius-xs text-warning"
-                    @click="removeFromRoot(prop.node)"
-                  >
-                    <q-item-section side>
-                      <q-icon name="mdi-link-off" color="warning" />
-                    </q-item-section>
-                    <q-item-section>从列表中移除</q-item-section>
-                  </q-item>
-                  <q-item
-                    v-if="prop.node.parentId"
-                    clickable
-                    v-close-popup
-                    class="radius-xs text-negative"
-                    @click="deleteItem(prop.node)"
-                  >
-                    <q-item-section side>
-                      <q-icon name="close" color="negative" />
-                    </q-item-section>
-                    <q-item-section>删除</q-item-section>
-                  </q-item>
-                </q-list>
-              </q-popup-proxy>
-            </div>
-          </template>
-        </q-tree>
-      </q-scroll-area>
-
-      <!-- 底部添加文件夹按钮 -->
-      <div v-if="root.length > 0" class="q-pa-xs full-width q-mt-md">
-        <q-btn
-          flat
-          icon="mdi-folder-plus"
-          class="full-width border unhover-op-5 transition"
-          label="添加文件夹"
-          @click="chooseDir()"
-        />
-      </div>
-    </template>
-    <div v-else class="q-space column flex-center">
-      <q-spinner-dots color="primary" size="3rem" :thickness="5" />
     </div>
   </div>
 </template>
@@ -184,6 +165,7 @@ import { uid, useQuasar } from 'quasar'
 import { useTts } from 'src/composeables/azure/useTts'
 import { useMarkdown } from 'src/composeables/useMarkdown'
 import { pathUtils } from 'src/utils/environment'
+import { useFileManagerStore } from 'src/stores/fileManager'
 
 const $q = useQuasar()
 
@@ -191,56 +173,40 @@ const { jsonContent, currentFile } = useTts()
 const { isMarkdown, getJson } = useMarkdown()
 
 // 使用导入的pathUtils替代之前的自定义path对象
-const path = pathUtils
+// 优先使用Electron提供的path函数
+const path = {
+  basename: window.fileSystemAPI?.basename || pathUtils.basename,
+  dirname: window.fileSystemAPI?.dirname || pathUtils.dirname,
+  join: window.fileSystemAPI?.join || pathUtils.join,
+}
 
-const root = ref([])
-const nodeMap = ref({})
+// 使用文件管理器的Store
+const fileManagerStore = useFileManagerStore()
 const contextMenuRef = useTemplateRef('contextMenuRef')
-const selected = ref(null)
-const expanded = ref([])
 
 // 文件监视器
 let fileCheckInterval = null
 
 // 平台信息
-const platform = ref(null)
-const isMac = ref(false)
-const isWindows = ref(false)
-const isLinux = ref(false)
+const isMac = fileManagerStore.isMac
+const isWindows = fileManagerStore.isWindows
+const isLinux = fileManagerStore.isLinux
 
-const rootRestored = ref(false)
-
-// 在组件加载时获取平台信息
+// 在组件加载时初始化
 onMounted(async () => {
-  // 获取平台信息
-  if (window.fileSystemAPI) {
-    platform.value = window.fileSystemAPI.platform
-    isMac.value = window.fileSystemAPI.isMac
-    isWindows.value = window.fileSystemAPI.isWindows
-    isLinux.value = window.fileSystemAPI.isLinux
-
-    console.log(`Running on ${platform.value} platform`)
-  }
-
-  // 从localStorage加载上次打开的文件夹列表
-  const lastOpenedDirs = JSON.parse(localStorage.getItem('lastOpenedDirs') || '[]')
-
-  // 如果有保存的文件夹，则尝试打开它们
-  for (const dirPath of lastOpenedDirs) {
+  // 只初始化一次，避免重复加载同一目录
+  if (fileManagerStore.root.length === 0) {
     try {
-      const exists = await window.fileSystemAPI.exists(dirPath)
-      if (exists) {
-        // 如果文件夹仍然存在，添加到根节点
-        const node = await processDirectory(dirPath)
-        root.value.push(node)
-        // 展开加载的节点
-        expanded.value.push(node.id)
-      }
+      await fileManagerStore.initialize()
     } catch (error) {
-      console.warn('Failed to load directory:', dirPath, error)
+      console.error('Error during initialization:', error)
+      $q.notify({
+        type: 'negative',
+        message: '初始化文件管理器失败',
+        timeout: 3000,
+      })
     }
   }
-  rootRestored.value = true
 })
 
 // 监视当前文件是否被删除
@@ -294,15 +260,48 @@ const chooseDir = async () => {
     const dirPath = await window.fileSystemAPI.chooseDirectory()
     if (!dirPath) return
 
+    console.log('Selected directory:', dirPath)
+    console.log('Path utils:', path)
+
+    // 确保pathUtils有所有必要的方法
+    if (!path || !path.basename || !path.dirname || !path.join) {
+      console.error('Path utils is invalid:', path)
+      $q.notify({
+        type: 'negative',
+        message: '文件路径处理工具不可用',
+      })
+      return
+    }
+
+    // 检查是否已经加载了该目录
+    const alreadyLoaded = fileManagerStore.root.some((node) => node.path === dirPath)
+    if (alreadyLoaded) {
+      console.log('Directory already loaded:', dirPath)
+      $q.notify({
+        type: 'info',
+        message: '该文件夹已经在列表中',
+        timeout: 2000,
+      })
+      return
+    }
+
     // 处理选中的目录
-    const node = await processDirectory(dirPath)
-    root.value.push(node)
+    const node = await fileManagerStore.processDirectory(dirPath, null, path)
+    console.log('Processed directory node:', node)
+
+    fileManagerStore.root.push(node)
 
     // 展开新添加的节点
-    expanded.value.push(node.id)
+    fileManagerStore.expanded.push(node.id)
 
     // 保存到localStorage
-    saveOpenedDirs()
+    fileManagerStore.saveOpenedDirs()
+
+    $q.notify({
+      type: 'positive',
+      message: '已添加文件夹: ' + path.basename(dirPath),
+      timeout: 2000,
+    })
   } catch (error) {
     console.error('Error choosing directory:', error)
     $q.notify({
@@ -312,52 +311,8 @@ const chooseDir = async () => {
   }
 }
 
-// 保存当前打开的文件夹列表到localStorage
-const saveOpenedDirs = () => {
-  const dirs = root.value.map((node) => node.path)
-  localStorage.setItem('lastOpenedDirs', JSON.stringify(dirs))
-}
-
-// 将processDirectory提取为独立函数，便于复用
-const processDirectory = async (dirPath, parentId = null) => {
-  const entries = await window.fileSystemAPI.readDirectory(dirPath)
-  const node = {
-    id: uid(),
-    label: path.basename(dirPath),
-    path: dirPath,
-    icon: 'mdi-folder',
-    isDirectory: true,
-    parentId,
-    children: [],
-  }
-
-  // 存储到映射表以便快速查找
-  nodeMap.value[node.id] = node
-
-  // 处理目录下的所有条目
-  for (const entry of entries) {
-    if (entry.isDirectory) {
-      const childNode = await processDirectory(entry.path, node.id)
-      node.children.push(childNode)
-    } else {
-      // 只显示JSON和Markdown文件
-      if (entry.name.endsWith('.json') || entry.name.endsWith('.md')) {
-        const fileNode = {
-          id: uid(),
-          label: entry.name,
-          path: entry.path,
-          icon: entry.name.endsWith('.md') ? 'mdi-language-markdown' : 'mdi-code-json',
-          isDirectory: false,
-          parentId: node.id,
-        }
-        nodeMap.value[fileNode.id] = fileNode
-        node.children.push(fileNode)
-      }
-    }
-  }
-
-  return node
-}
+// 保存当前打开的文件夹列表到localStorage方法直接用store里的
+const saveOpenedDirs = fileManagerStore.saveOpenedDirs
 
 const readFile = async (filePath) => {
   if (!filePath) return
@@ -450,7 +405,7 @@ const createFile = async (node, name) => {
         parentId: node.id,
       }
       node.children.push(newNode)
-      nodeMap.value[newNode.id] = newNode
+      fileManagerStore.nodeMap.value[newNode.id] = newNode
     }
   } catch (error) {
     console.error('Error creating file:', error)
@@ -482,7 +437,7 @@ const createDirectory = async (node, name) => {
         children: [],
       }
       node.children.push(newNode)
-      nodeMap.value[newNode.id] = newNode
+      fileManagerStore.nodeMap.value[newNode.id] = newNode
     }
   } catch (error) {
     console.error('Error creating directory:', error)
@@ -499,19 +454,21 @@ const deleteItem = async (node) => {
 
     if (node.parentId) {
       // 如果是子节点，从父节点的children中删除
-      const parentNode = nodeMap.value[node.parentId]
+      const parentNode = fileManagerStore.nodeMap.value[node.parentId]
       if (parentNode) {
         parentNode.children = parentNode.children.filter((child) => child.id !== node.id)
       }
     } else {
       // 如果是根节点，从root数组中删除
-      root.value = root.value.filter((item) => item.id !== node.id)
+      fileManagerStore.root.value = fileManagerStore.root.value.filter(
+        (item) => item.id !== node.id,
+      )
       // 更新保存的文件夹列表
       saveOpenedDirs()
     }
 
     // 从nodeMap中删除节点
-    delete nodeMap.value[node.id]
+    delete fileManagerStore.nodeMap.value[node.id]
 
     $q.notify({
       message: `已删除 ${node.label}`,
@@ -624,11 +581,11 @@ const openInExplorer = async (node) => {
 // 从根节点移除目录，但不删除文件
 const removeFromRoot = (node) => {
   // 从根节点数组中移除
-  root.value = root.value.filter((item) => item.id !== node.id)
+  fileManagerStore.root.value = fileManagerStore.root.value.filter((item) => item.id !== node.id)
 
   // 从nodeMap中删除所有相关节点(递归清除)
   const removeFromNodeMap = (nodeId) => {
-    const node = nodeMap.value[nodeId]
+    const node = fileManagerStore.nodeMap.value[nodeId]
     if (node) {
       // 如果有子节点，递归删除
       if (node.children && node.children.length > 0) {
@@ -637,7 +594,7 @@ const removeFromRoot = (node) => {
         }
       }
       // 从nodeMap中删除当前节点
-      delete nodeMap.value[nodeId]
+      delete fileManagerStore.nodeMap.value[nodeId]
     }
   }
   removeFromNodeMap(node.id)

@@ -81,20 +81,14 @@
             </q-tooltip>
           </q-icon>
         </q-toolbar>
-        <keep-alive>
-          <ProjectManager
-            v-if="mode === 'indexedDB'"
-            ref="projectManager"
-            class="q-pa-sm"
-            @open-file="handleOpenFile"
-          />
-        </keep-alive>
-        <keep-alive>
-          <FileManager v-if="mode === 'fileSystem' && !isElectronEnv" />
-        </keep-alive>
-        <keep-alive>
-          <ElectronFileManager v-if="mode === 'fileSystem' && isElectronEnv" />
-        </keep-alive>
+        <ProjectManager
+          v-if="mode === 'indexedDB'"
+          ref="projectManager"
+          class="q-pa-sm"
+          @open-file="handleOpenFile"
+        />
+        <FileManager v-if="mode === 'fileSystem' && !isElectronEnv" />
+        <ElectronFileManager v-if="mode === 'fileSystem' && isElectronEnv" />
       </div>
     </template>
     <template #mainContent>

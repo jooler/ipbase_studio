@@ -82,6 +82,11 @@ contextBridge.exposeInMainWorld('fileSystemAPI', {
   isMac: isMac,
   isLinux: isLinux,
 
+  // Path utilities
+  basename: (filePath) => path.basename(filePath),
+  dirname: (filePath) => path.dirname(filePath),
+  join: (...paths) => path.join(...paths),
+
   // Choose a directory
   chooseDirectory: async () => {
     try {

@@ -1,8 +1,5 @@
 <template>
   <div class="tiptap-ssml-editor">
-    <div v-if="editor?.isEmpty" class="absolute-full editor-content q-pa-md op-5">
-      <p>在此输入你要转换的文本内容</p>
-    </div>
     <EditorContent :editor="editor" class="editor-content" />
 
     <template v-if="editor">
@@ -327,6 +324,9 @@ defineExpose({
     color: #adb5bd;
     pointer-events: none;
     height: 0;
+    /* 增加更高的特异性和优先级，确保占位符显示 */
+    display: block !important;
+    z-index: 1;
   }
 
   /* Visualization of SSML attributes in the editor */
@@ -367,7 +367,8 @@ defineExpose({
 
     &.empty-paragraph,
     &.is-empty {
-      &::before {
+      &[data-preview-text]::before,
+      &:hover::before:not([data-placeholder]) {
         display: none !important;
       }
     }
@@ -379,7 +380,7 @@ defineExpose({
           content: '';
           position: absolute;
           left: 2px;
-          top: 2px;
+          top: 12px;
           width: 19px;
           height: 19px;
           opacity: 1;
