@@ -1,11 +1,12 @@
 <template>
   <div class="q-space column no-wrap text-white">
     <q-scroll-area v-if="fileManagerStore.root.length > 0" class="q-space">
-      <q-tree ref="treeRef" :nodes="fileManagerStore.root" node-key="id" text-color="white" selected-color="deep-orange"
-        v-model:selected="fileManagerStore.selected" v-model:expanded="fileManagerStore.expanded">
+      <q-tree dense ref="treeRef" :nodes="fileManagerStore.root" node-key="id" text-color="white"
+        selected-color="deep-orange" v-model:selected="fileManagerStore.selected"
+        v-model:expanded="fileManagerStore.expanded">
         <template v-slot:default-header="prop">
-          <div class="row items-center full-width" @click="readFile(prop.node.path)">
-            <q-icon :name="prop.node.icon || 'share'" color="orange" size="28px" class="q-mr-sm" />
+          <div class="row full-width no-wrap" @click="readFile(prop.node.path)">
+            <q-icon :name="prop.node.icon || 'share'" color="orange" size="18px" class="q-mr-sm" />
             <div>{{ prop.node.label }}</div>
             <q-popup-proxy ref="contextMenuRef" context-menu class="shadow-24 radius-sm" @hide="contextMenuHide()">
               <q-list bordered dense class="q-pa-xs radius-sm" style="min-width: 12rem">
@@ -532,10 +533,6 @@
 
   // 从根节点移除目录，但不删除文件
   const removeFromRoot = (node) => {
-<<<<<<< HEAD
-=======
-    console.log('fileManagerStore.root', fileManagerStore.root)
->>>>>>> 8644b82 (修复electron根文件夹不能移除bug)
     // 从根节点数组中移除
     fileManagerStore.root = fileManagerStore.root.filter((item) => item.id !== node.id)
 
