@@ -532,6 +532,10 @@
 
   // 从根节点移除目录，但不删除文件
   const removeFromRoot = (node) => {
+<<<<<<< HEAD
+=======
+    console.log('fileManagerStore.root', fileManagerStore.root)
+>>>>>>> 8644b82 (修复electron根文件夹不能移除bug)
     // 从根节点数组中移除
     fileManagerStore.root = fileManagerStore.root.filter((item) => item.id !== node.id)
 
