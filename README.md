@@ -1,6 +1,25 @@
 # AI Studio for voice (ai-studio)
 
-A Quasar Project
+Project Description:
+
+This is a front-end application for text-to-speech (TTS) conversion based on Microsoft Azure Speech Services. Built using the Quasar Framework, it offers a versatile and seamless user experience across multiple platforms. The application supports three deployment modes:
+
+Single-Page Application (SPA): Delivers a fast and responsive web experience with dynamic content loading.
+Progressive Web App (PWA): Provides offline capabilities, push notifications, and an app-like experience on any device.
+Electron: Enables desktop application deployment for Windows, macOS, and Linux, ensuring cross-platform compatibility.
+The application leverages the powerful Microsoft Azure Speech API to convert text into natural-sounding speech, offering high-quality voice synthesis with customizable settings. Its modular design and Quasar's rich UI components ensure a clean, intuitive, and user-friendly interface.
+
+Key Features:
+
+Text-to-speech conversion using Microsoft Azure Speech Services.
+Multi-platform support (SPA, PWA, Electron).
+Customizable voice options (language, voice type, speed, pitch).
+Offline functionality (PWA mode).
+Cross-platform desktop compatibility (Electron).
+Responsive and modern UI powered by Quasar Framework.
+This project is ideal for developers and businesses seeking a scalable, cross-platform solution for integrating text-to-speech functionality into their workflows.
+
+Let me know if you'd like to adjust or add anything!
 
 ## Install the dependencies
 
@@ -32,33 +51,16 @@ yarn format
 npm run format
 ```
 
-### Build the app for production
+### Build the for production
 
 ```bash
-quasar build
+quasar build  // SPA
+quasar build -m pwa  // PWA
+quasar build -m electron  // Electron
 ```
 
 ### Customize the configuration
 
 See [Configuring quasar.config.js](https://v2.quasar.dev/quasar-cli-vite/quasar-config-js).
 
-## Environment Variables
 
-This project uses environment variables through `.env` files. To set up your environment:
-
-1. Copy `.env.example` to `.env`
-2. Modify the values in `.env` as needed for your environment
-3. The application will load these variables during development and build
-
-Available environment variables:
-
-- `API_URL`: The base URL for API requests
-- `APP_NAME`: The name of the application
-- `APP_MODE`: The current mode (development, production, etc.)
-
-To use environment variables in your components:
-
-```js
-// Access environment variables in Vue components
-const apiUrl = import.meta.env.API_URL
-```
