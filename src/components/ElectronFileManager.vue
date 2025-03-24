@@ -144,6 +144,19 @@
           </div>
         </template>
       </q-tree>
+      <q-popup-proxy context-menu v-if="fileManagerStore.root.length > 0">
+        <q-list bordered class="radius-sm q-pa-xs">
+          <q-item clickable v-ripple class="radius-xs" v-close-popup @click="refreshFileTree">
+            <q-item-section avatar>
+              <q-icon color="primary" name="refresh" />
+            </q-item-section>
+            <q-item-section class="q-pr-md">刷新</q-item-section>
+          </q-item>
+        </q-list>
+      </q-popup-proxy>
+      <q-inner-loading :showing="refreshing">
+        <q-spinner-dots size="50px" color="primary" />
+      </q-inner-loading>
     </q-scroll-area>
 
     <div class="q-pa-sm">
@@ -531,6 +544,7 @@ const rename = async (node, newName) => {
     if (!node.parentId) {
       saveOpenedDirs()
     }
+    currentFile.value.name = newName
 
     $q.notify({
       message: `重命名成功: ${newName}`,
@@ -606,5 +620,66 @@ const removeFromRoot = (node) => {
     message: `已从列表中移除 ${node.label}`,
     color: 'info',
   })
+}
+
+// 刷新文件树
+const refreshing = ref(false)
+const refreshFileTree = async () => {
+  try {
+    // 保存当前展开的节点和选中状态，以便刷新后恢复
+    const previousExpanded = [...fileManagerStore.expanded]
+    const previousSelected = fileManagerStore.selected
+
+    // 记录根目录路径
+    const rootPaths = fileManagerStore.root.map((node) => node.path)
+
+    // 先收集所有新数据，不立即修改界面
+    const newRootNodes = []
+    const newNodeMap = {}
+
+    // 显示加载中通知
+    refreshing.value = true
+
+    try {
+      // 重新加载每个根目录
+      for (const dirPath of rootPaths) {
+        const node = await fileManagerStore.processDirectory(dirPath, null, path)
+        newRootNodes.push(node)
+
+        // 将新节点添加到临时nodeMap中
+        const addToNodeMap = (node) => {
+          newNodeMap[node.id] = node
+          if (node.children && node.children.length > 0) {
+            node.children.forEach((child) => addToNodeMap(child))
+          }
+        }
+        addToNodeMap(node)
+      }
+
+      // 所有数据准备好后，一次性更新UI
+      fileManagerStore.root = newRootNodes
+      fileManagerStore.nodeMap.value = newNodeMap
+
+      // 恢复展开状态
+      fileManagerStore.expanded = previousExpanded
+      fileManagerStore.selected = previousSelected
+
+      // 关闭加载通知
+      refreshing.value = false
+    } catch (error) {
+      // 确保在出错时也关闭加载通知
+      if (refreshing.value) {
+        refreshing.value = false
+      }
+      throw error // 重新抛出错误以便被外层catch捕获
+    }
+  } catch (error) {
+    console.error('Error refreshing file tree:', error)
+    $q.notify({
+      type: 'negative',
+      message: '刷新文件树失败: ' + error.message,
+      timeout: 3000,
+    })
+  }
 }
 </script>

@@ -5,6 +5,9 @@ import localforage from 'localforage'
 import { api } from 'src/boot/axios'
 import { appStore } from 'src/stores/stores'
 
+const azureTtsKey = computed(() => appStore.settings?.azureTtsKey)
+const azureTtsRegion = computed(() => appStore.settings?.azureTtsRegion)
+
 // 创建一个单例实例
 let ttsInstance = null
 
@@ -22,7 +25,6 @@ export function useTts() {
   const ssmlContent = ref('')
   const jsonContent = ref(void 0) // Store editor's JSON content
   const isConverting = ref(false)
-  const audioUrl = ref('')
   const currentFile = ref(null)
 
   // Configuration
@@ -177,13 +179,42 @@ export function useTts() {
     </speak>`
 
     try {
-      const res = await api.post('/tts/convert', {
-        data: {
-          ssml: previewSsml,
-        },
-      })
-      // 创建音频元素并播放
-      const url = processBase64Audio(res.data.audioBase64)
+      let url
+      console.log('azureTtsKey.value', azureTtsKey.value)
+
+      if (azureTtsKey.value) {
+        const ttsApi = `https://${azureTtsRegion.value}.tts.speech.microsoft.com/cognitiveservices/v1`
+        const response = await fetch(ttsApi, {
+          method: 'POST',
+          headers: {
+            'Ocp-Apim-Subscription-Key': azureTtsKey.value,
+            'Content-Type': 'application/ssml+xml',
+            'X-Microsoft-OutputFormat': 'audio-16khz-128kbitrate-mono-mp3',
+            'User-Agent': 'AzureTTSApp/1.0',
+          },
+          body: previewSsml,
+        })
+        // strapi.log.info(`fetchVoiceList: ${fetchVoiceList}`);
+
+        if (!response.ok) {
+          throw new Error(`获取语音列表失败: ${response.status} ${response.statusText}`)
+        }
+        const audioBlob = await response.blob()
+
+        if (audioBlob.size === 0) {
+          throw new Error('获取到的音频数据为空')
+        }
+
+        url = URL.createObjectURL(audioBlob)
+      } else {
+        const res = await api.post('/tts/convert', {
+          data: {
+            ssml: previewSsml,
+          },
+        })
+        // 创建音频元素并播放
+        url = processBase64Audio(res.data.audioBase64)
+      }
       const audio = new Audio(url)
       audio.play()
       previewAudio.value = audio
@@ -296,6 +327,7 @@ export function useTts() {
   }
 
   // Azure text-to-speech function
+  const covertedAudio = ref({})
   const convertToSpeech = async () => {
     if (!ssmlContent.value) {
       appStore.showError('请输入文本')
@@ -304,7 +336,6 @@ export function useTts() {
     document.activeElement.blur() // 让元素失焦，放置用户按下空格重新请求
     try {
       isConverting.value = true
-      audioUrl.value = '' // Clear previous URL
 
       // 检查SSML内容是否有效
       if (!ssmlContent.value.includes('<speak') || !ssmlContent.value.includes('</speak>')) {
@@ -498,24 +529,52 @@ export function useTts() {
       } else {
         console.warn('No voice selected, using default from SSML')
       }
-
-      const res = await api.post('/tts/convert', {
-        data: {
-          ssml: ssmlContent.value,
-        },
-      })
-
-      // 检查响应是否包含有效的音频数据
-      if (!res.data || !res.data.audioBase64) {
-        throw new Error('服务器返回的响应不包含有效的音频数据')
+      if (covertedAudio.value[currentFile.value.id]) {
+        delete covertedAudio.value[currentFile.value.id]
       }
 
-      // 检查Base64字符串是否为空
-      if (!res.data.audioBase64.trim()) {
-        throw new Error('服务器返回的Base64音频数据为空')
-      }
+      if (azureTtsKey.value) {
+        const ttsApi = `https://${azureTtsRegion.value}.tts.speech.microsoft.com/cognitiveservices/v1`
+        const response = await fetch(ttsApi, {
+          method: 'POST',
+          headers: {
+            'Ocp-Apim-Subscription-Key': azureTtsKey.value,
+            'Content-Type': 'application/ssml+xml',
+            'X-Microsoft-OutputFormat': 'audio-16khz-128kbitrate-mono-mp3',
+            'User-Agent': 'AzureTTSApp/1.0',
+          },
+          body: ssmlContent.value,
+        })
+        // strapi.log.info(`fetchVoiceList: ${fetchVoiceList}`);
 
-      audioUrl.value = processBase64Audio(res.data.audioBase64)
+        if (!response.ok) {
+          throw new Error(`获取语音列表失败: ${response.status} ${response.statusText}`)
+        }
+        const audioBlob = await response.blob()
+
+        if (audioBlob.size === 0) {
+          throw new Error('获取到的音频数据为空')
+        }
+
+        covertedAudio.value[currentFile.value.id] = URL.createObjectURL(audioBlob)
+      } else {
+        const res = await api.post('/tts/convert', {
+          data: {
+            ssml: ssmlContent.value,
+          },
+        })
+
+        // 检查响应是否包含有效的音频数据
+        if (!res.data || !res.data.audioBase64) {
+          throw new Error('服务器返回的响应不包含有效的音频数据')
+        }
+
+        // 检查Base64字符串是否为空
+        if (!res.data.audioBase64.trim()) {
+          throw new Error('服务器返回的Base64音频数据为空')
+        }
+        covertedAudio.value[currentFile.value.id] = processBase64Audio(res.data.audioBase64)
+      }
     } catch (error) {
       if (error.response?.data?.error) {
         console.log('error', error.response?.data?.error)
@@ -629,7 +688,7 @@ export function useTts() {
     jsonContent,
     currentFile,
     isConverting,
-    audioUrl,
+    covertedAudio,
     selectedLocale,
     selectedVoice,
     voiceOptions,

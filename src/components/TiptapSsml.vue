@@ -365,10 +365,18 @@ defineExpose({
     padding-bottom: 4px;
     font-size: 18px;
 
+    &:hover {
+      background-color: rgba(25, 118, 210, 0.01);
+    }
+
     &.empty-paragraph,
     &.is-empty {
       &[data-preview-text]::before,
-      &:hover::before:not([data-placeholder]) {
+      &:hover::before:not([data-placeholder]),
+      &:not(:first-child)::before {
+        display: none !important;
+      }
+      &:hover::before {
         display: none !important;
       }
     }
@@ -457,7 +465,8 @@ defineExpose({
         opacity: 1;
       }
 
-      &.empty-paragraph::before {
+      &.empty-paragraph::before,
+      &.is-empty::before {
         display: none !important;
       }
     }

@@ -75,9 +75,6 @@ export function useSsmlProcessor(tiptapState = {}) {
             let currentText = ''
             let currentProsody = {}
 
-            // 用于调试
-            console.log('开始处理段落内容:', JSON.stringify(node.content))
-
             // 第一次遍历，确定每个文本片段的属性
             for (const child of node.content) {
               if (child.type === 'text') {
@@ -183,8 +180,6 @@ export function useSsmlProcessor(tiptapState = {}) {
                 prosody: currentProsody,
               })
             }
-
-            console.log('分段结果:', segments)
 
             // 第二次遍历，生成最终的SSML内容
             // 优化逻辑：合并相同voice的连续段落到同一个voice标签中
@@ -310,9 +305,6 @@ export function useSsmlProcessor(tiptapState = {}) {
       // 明确指定选区范围，确保只应用于选中文本
       .setTextSelection({ from, to })
       .run()
-
-    // 记录debug信息
-    console.log('应用语音属性于选区:', { from, to, voice: voiceValue, voiceName: voiceLocalName })
   }
 
   // 应用语速
@@ -343,9 +335,6 @@ export function useSsmlProcessor(tiptapState = {}) {
       // 明确指定选区范围，确保只应用于选中文本
       .setTextSelection({ from, to })
       .run()
-
-    // 记录debug信息
-    console.log('应用语速属性于选区:', { from, to, rate, voice: voiceId, voiceName })
   }
 
   // 应用音调
@@ -376,9 +365,6 @@ export function useSsmlProcessor(tiptapState = {}) {
       // 明确指定选区范围，确保只应用于选中文本
       .setTextSelection({ from, to })
       .run()
-
-    // 记录debug信息
-    console.log('应用音调属性于选区:', { from, to, pitch, voice: voiceId, voiceName })
   }
 
   // 应用音量
@@ -409,9 +395,6 @@ export function useSsmlProcessor(tiptapState = {}) {
       // 明确指定选区范围，确保只应用于选中文本
       .setTextSelection({ from, to })
       .run()
-
-    // 记录debug信息
-    console.log('应用音量属性于选区:', { from, to, volume, voice: voiceId, voiceName })
   }
 
   // 清除属性
@@ -446,9 +429,6 @@ export function useSsmlProcessor(tiptapState = {}) {
       setTimeout(() => {
         showSuccessToast.value = false
       }, 2000)
-
-      // 记录调试信息
-      console.log('清除了选区的SSML属性:', { from, to })
     }
   }
 
@@ -508,7 +488,6 @@ export function useSsmlProcessor(tiptapState = {}) {
 
     const selectedText = editor.state.doc.textBetween(from, to, ' ')
     if (selectedText.trim()) {
-      console.log('设置预览文本:', selectedText.trim())
       setCustomPreviewText(selectedText.trim())
 
       // Clear any existing preview paragraphs
@@ -556,7 +535,6 @@ export function useSsmlProcessor(tiptapState = {}) {
   // 清除自定义预览文本
   const clearCustomPreviewText = (editor) => {
     if (!editor) return
-    console.log('清除预览文本')
     setCustomPreviewText('')
 
     // Clear isPreviewText attribute from all paragraphs

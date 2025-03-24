@@ -1,5 +1,6 @@
 import { defineStore, acceptHMRUpdate } from 'pinia'
 import { Notify } from 'quasar'
+import localforage from 'localforage'
 
 export const useAppStore = defineStore('app', {
   state: () => ({
@@ -33,6 +34,11 @@ export const useAppStore = defineStore('app', {
         color: 'negative',
         position: 'top',
       })
+    },
+    async restoreSettings() {
+      this.settings.azureTtsKey = await localforage.getItem('azureTtsKey')
+      this.settings.azureTtsRegion =
+        (await localforage.getItem('azureTtsRegion')) || this.settings.azureTtsRegion
     },
   },
 })

@@ -5,7 +5,7 @@
       dense
       size="sm"
       flat
-      :icon="isMaximized ? 'mdi-window-restore' : 'crop_square'"
+      :icon="isMaximized ? 'mdi-image-filter-none' : 'crop_square'"
       @click="toggleMaximize"
     />
     <q-btn dense size="sm" icon="close" color="red" @click="closeApp" />

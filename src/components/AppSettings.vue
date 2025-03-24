@@ -1,6 +1,7 @@
 <template>
   <q-card bordered style="width: 600px; height: 400px" class="column">
     <q-bar class="transparent border-bottom">
+      设置
       <q-space />
       <q-btn dense size="0.5rem" round icon="close" v-close-popup />
     </q-bar>
@@ -14,24 +15,30 @@
       <template v-slot:after>
         <q-tab-panels v-model="tab" animated swipeable vertical>
           <q-tab-panel v-if="tab === 'azure'" name="azure" class="q-pa-none">
-            <q-toolbar class="transparent">
-              <q-space />
-              请设置你的 Azure 语音服务信息
-              <q-space />
-            </q-toolbar>
             <q-list class="q-pa-xl">
+              <q-item>
+                <q-item-section>
+                  <q-item-label>Azure 语音服务信息</q-item-label>
+                  <q-item-label caption lines="2" class="text-deep-orange"
+                    >您可以使用自己的Azure服务，忽略站点的用量限制</q-item-label
+                  >
+                </q-item-section>
+              </q-item>
               <q-item>
                 <q-item-section>
                   <q-input
                     v-model="azureTtsKey"
                     type="text"
-                    label="Azure TTS Key"
+                    outlined
+                    label="语音服务密钥（Azure TTS Key）"
                     @update:model-value="updateTtsKey(azureTtsKey)"
                   />
                   <q-input
                     v-model="azureTtsRegion"
                     type="text"
-                    label="Azure TTS Region"
+                    outlined
+                    label="语音服务终结点（Azure TTS Region）"
+                    class="q-mt-sm"
                     @update:model-value="updateTtsRegion(azureTtsRegion)"
                   />
                 </q-item-section>
@@ -78,11 +85,9 @@ const updateTtsRegion = async (value) => {
 }
 
 const restore = async () => {
-  appStore.settings.azureTtsKey = await localforage.getItem('azureTtsKey')
-  azureTtsKey.value = appStore.settings.azureTtsKey
-  appStore.settings.azureTtsRegion =
-    (await localforage.getItem('azureTtsRegion')) || appStore.settings.azureTtsRegion
-  azureTtsRegion.value = appStore.settings.azureTtsRegion
+  await appStore.restoreSettings()
+  azureTtsKey.value = appStore.settings?.azureTtsKey
+  azureTtsRegion.value = appStore.settings?.azureTtsRegion
 }
 
 onMounted(async () => {

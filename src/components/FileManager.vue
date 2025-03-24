@@ -128,15 +128,31 @@
         </div>
       </template>
     </q-tree>
+    <q-popup-proxy context-menu v-if="root.length > 0">
+      <q-list bordered class="radius-sm q-pa-xs">
+        <q-item clickable v-ripple class="radius-xs" v-close-popup @click="refreshFileTree">
+          <q-item-section avatar>
+            <q-icon color="primary" name="refresh" />
+          </q-item-section>
+          <q-item-section class="q-pr-md">刷新</q-item-section>
+        </q-item>
+      </q-list>
+    </q-popup-proxy>
+    <q-inner-loading :showing="refreshing">
+      <q-spinner-dots size="50px" color="primary" />
+    </q-inner-loading>
   </q-scroll-area>
 </template>
 
 <script setup>
-import { ref, useTemplateRef, watch, onUnmounted } from 'vue'
+import { ref, useTemplateRef, watch, onUnmounted, onMounted } from 'vue'
 import { uid, useQuasar } from 'quasar'
 
 import { useTts } from 'src/composeables/azure/useTts'
 import { useMarkdown } from 'src/composeables/useMarkdown'
+import { useFileManager } from 'src/composeables/useFileManager'
+
+const { chooseHandle } = useFileManager()
 
 const $q = useQuasar()
 
@@ -150,7 +166,7 @@ const contextMenuRef = useTemplateRef('contextMenuRef')
 // const fileContent = ref();
 const selected = ref(null)
 const expanded = ref([])
-const chooseDir = async () => {
+const chooseDir = async (_handle) => {
   try {
     const processHandle = async (handle, parentTree) => {
       const tree = {
@@ -174,14 +190,20 @@ const chooseDir = async () => {
       return tree
     }
 
-    const handle = await window.showDirectoryPicker()
+    const handle = _handle || (await window.showDirectoryPicker())
     if (handle) {
+      chooseHandle.value = handle
       root.value.push(await processHandle(handle, null))
     }
   } catch (error) {
     console.error(error)
   }
 }
+onMounted(async () => {
+  if (chooseHandle.value) {
+    await chooseDir(chooseHandle.value)
+  }
+})
 
 const readFile = async (handle) => {
   if (handle.kind !== 'file') return
@@ -346,6 +368,7 @@ const rename = async (node, newName) => {
     node.handle = newFolderHandle
   }
   node.label = newName
+  currentFile.value.name = newName
   contextMenuRef.value?.hide()
 }
 const showRename = (prop) => {
@@ -420,4 +443,60 @@ onUnmounted(() => {
     fileCheckInterval = null
   }
 })
+
+// 刷新文件树函数
+const refreshing = ref(false)
+const refreshFileTree = async () => {
+  if (root.value.length === 0) return
+  refreshing.value = true
+  try {
+    // 清空文件树
+    const rootHandles = [...root.value.map((node) => node.handle)]
+    root.value = []
+    nodeMap.value = []
+
+    // 重新处理文件树
+    for (const handle of rootHandles) {
+      const processHandle = async (handle, parentTree) => {
+        const tree = {
+          id: uid(),
+          label: handle.name,
+          icon: handle.kind === 'file' ? 'mdi-file' : 'mdi-folder',
+          handle: handle,
+          parentTree: parentTree,
+          children: [],
+        }
+        // 存储到映射表以便快速查找
+        nodeMap.value[tree.id] = tree
+        if (handle.kind === 'file') {
+          return tree
+        }
+        const iter = await handle.entries()
+        for await (const entry of iter) {
+          const child = await processHandle(entry[1], tree)
+          tree.children.push(child)
+        }
+        return tree
+      }
+
+      root.value.push(await processHandle(handle, null))
+    }
+
+    // 在下一个渲染周期中自动展开根节点
+    setTimeout(() => {
+      if (root.value.length > 0) {
+        expanded.value = [root.value[0].id]
+      }
+    }, 100)
+
+    refreshing.value = false
+  } catch (error) {
+    console.error('刷新文件树时出错:', error)
+    $q.notify({
+      type: 'negative',
+      message: '刷新文件树失败',
+      position: 'top',
+    })
+  }
+}
 </script>

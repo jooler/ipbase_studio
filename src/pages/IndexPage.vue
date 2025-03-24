@@ -92,14 +92,14 @@
       </div>
     </template>
     <template #mainContent>
-      <div class="absolute-full column">
+      <q-scroll-area class="absolute-full column">
         <tiptap-ssml
           :key="currentFile?.id"
           @saveContent="saveCurrentFile"
           @isEmptyString="isEmptyString"
           class="q-space"
         />
-      </div>
+      </q-scroll-area>
     </template>
     <template #rightDrawerContent>
       <div class="config-container q-pa-md">
@@ -252,8 +252,13 @@
       </div>
     </template>
     <template #footer>
-      <div v-if="audioUrl" class="q-pa-xs" :class="$q.dark.mode ? 'bg-black' : 'bg-white'">
-        <WaveSurfer :url="audioUrl">
+      <div
+        v-if="currentFile && covertedAudio[currentFile.id]"
+        :key="currentFile.id"
+        class="q-pa-xs"
+        :class="$q.dark.mode ? 'bg-black' : 'bg-white'"
+      >
+        <WaveSurfer :url="covertedAudio[currentFile.id]">
           <template #more>
             <q-btn
               flat
@@ -261,7 +266,7 @@
               rounded
               padding="xs md"
               icon="file_download"
-              :href="audioUrl"
+              :href="covertedAudio[currentFile.id]"
               :download="currentFile?.name ? `${currentFile.name}.mp3` : 'speech.mp3'"
               label="下载音频"
               :color="$q.dark.mode ? 'grey-1' : 'grey-8'"
@@ -269,7 +274,12 @@
           </template>
         </WaveSurfer>
       </div>
-      <q-bar v-if="ssmlContent?.length" dark class="transparent border-top">
+      <q-bar
+        v-if="ssmlContent?.length"
+        dark
+        class="transparent"
+        :class="$q.dark.mode ? 'bg-black' : 'bg-white'"
+      >
         <q-space />
         <span
           class="font-small unselected"
@@ -281,11 +291,11 @@
                 : 'op-3'
           "
         >
-          {{ ssmlContent.length }} / 10000
+          {{ ssmlContent.length }} / {{ limit }}
           <q-tooltip class="no-padding transparent shadow-24">
             <q-card bordered>
               <q-card-section>
-                <div class="text-subtitle2">免费用户每日限额 10000 字符</div>
+                <div class="text-subtitle2">{{ `免费用户每日限额 ${limit} 字符` }}</div>
               </q-card-section>
             </q-card>
           </q-tooltip>
@@ -308,6 +318,8 @@ import FileManager from 'src/components/FileManager.vue'
 import AudioWave from 'src/components/AudioWave.vue'
 import { useQuasar } from 'quasar'
 import { appStore } from 'src/stores/stores'
+
+const limit = computed(() => (appStore.settings?.azureTtsKey ? '100000' : '10000'))
 
 const $q = useQuasar()
 const isElectronEnv = computed(() => $q.platform.is.electron)
@@ -351,7 +363,7 @@ const {
   jsonContent,
   currentFile,
   isConverting,
-  audioUrl,
+  covertedAudio,
   selectedLocale,
   selectedVoice,
   voiceOptions,

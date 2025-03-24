@@ -1,6 +1,7 @@
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 import { isElectron } from 'src/utils/environment'
 
+const chooseHandle = ref()
 export function useFileManager() {
   // 当前环境
   const isElectronEnv = computed(() => isElectron())
@@ -27,5 +28,6 @@ export function useFileManager() {
     isElectronEnv,
     fileManagerComponent,
     appTitle,
+    chooseHandle,
   }
 }
