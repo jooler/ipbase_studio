@@ -14,7 +14,7 @@ const api = axios.create({
 
 export default defineBoot(({ app }) => {
   api.interceptors.request.use(async (config) => {
-    const token = process.env.VITE_TTS_KEY
+    const token = process.env.VITE_TTS_KEY || '332c27dbabf173fcfb81ccbe0e4a76026c97df18da07c7b6b58066b29fc5f45fc02e26a97c01a0afe2cfe4fbe220b1683dc2ee06d8fc49881d53a5d578c6d96e4777abf2b5ee281114abe392b419147513230f283eb6d967f6f857dff77f4c79f0b87d167266116d5a8de6eae3e50ad1c85ccdf581d0289ee54545ff3a9b6482'
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
