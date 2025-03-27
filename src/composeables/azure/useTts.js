@@ -119,6 +119,7 @@ export function useTts() {
 
       // 创建 Blob 对象
       const audioBlob = new Blob([bytes], { type: 'audio/mpeg' })
+      covertedBlob.value = audioBlob
       const url = URL.createObjectURL(audioBlob)
       console.log('成功创建音频URL:', url)
       return url
@@ -556,6 +557,7 @@ export function useTts() {
           throw new Error('获取到的音频数据为空')
         }
 
+        covertedBlob.value = audioBlob
         covertedAudio.value[currentFile.value.id] = URL.createObjectURL(audioBlob)
       } else {
         const res = await api.post('/tts/convert', {
@@ -679,6 +681,8 @@ export function useTts() {
 
   // 创建实例
   const mode = ref('fileSystem')
+  const covertedBlob = ref();
+  const studioAttrs = ref()
   ttsInstance = {
     mode,
     canConvert,
@@ -689,6 +693,8 @@ export function useTts() {
     currentFile,
     isConverting,
     covertedAudio,
+    covertedBlob,
+    studioAttrs,
     selectedLocale,
     selectedVoice,
     voiceOptions,

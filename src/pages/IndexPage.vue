@@ -271,6 +271,16 @@
               label="下载音频"
               :color="$q.dark.mode ? 'grey-1' : 'grey-8'"
             />
+            <q-btn
+              flat
+              dense
+              rounded
+              padding="xs md"
+              icon="file_download"
+              label="进入创作"
+              :color="$q.dark.mode ? 'grey-1' : 'grey-8'"
+              @click="enterStudio(covertedAudio[currentFile.id])"
+            />
           </template>
         </WaveSurfer>
       </div>
@@ -318,6 +328,7 @@ import FileManager from 'src/components/FileManager.vue'
 import AudioWave from 'src/components/AudioWave.vue'
 import { useQuasar } from 'quasar'
 import { appStore } from 'src/stores/stores'
+import localforage from 'localforage'
 
 const limit = computed(() => (appStore.settings?.azureTtsKey ? '100000' : '10000'))
 
@@ -364,6 +375,8 @@ const {
   currentFile,
   isConverting,
   covertedAudio,
+  covertedBlob,
+  studioAttrs,
   selectedLocale,
   selectedVoice,
   voiceOptions,
@@ -707,6 +720,14 @@ const exportCurrentFile = async () => {
     console.error('Error exporting file:', error)
     appStore.showError('导出文件失败: ' + error.message)
   }
+}
+
+const enterStudio = async () => {
+  studioAttrs.value = {
+    file: currentFile.value,
+    blob: covertedBlob.vue
+  }
+  await localforage.setItem('studioAttrs', studioAttrs.value)
 }
 </script>
 
