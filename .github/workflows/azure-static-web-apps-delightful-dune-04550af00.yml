@@ -19,6 +19,11 @@ jobs:
         with:
           submodules: true
           lfs: false
+      - name: Load environment variables
+        run: |
+          echo "VITE_API_URL=${{ secrets.VITE_API_URL }}" >> $GITHUB_ENV
+          echo "VITE_TTS_KEY=${{ secrets.VITE_TTS_KEY }}" >> $GITHUB_ENV
+          echo "VITE_Images_URI=${{ secrets.VITE_Images_URI }}" >> $GITHUB_ENV
       - name: Install dependencies
         run: npm install
       - name: Build the Quasar app
