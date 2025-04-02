@@ -77,7 +77,7 @@
       </div>
     </q-card-section>
     <q-card-actions align="right" class="q-pa-sm">
-      <q-btn flat label="取消" @click="cancel" :disable="isStreaming" />
+      <q-btn flat label="取消" @click="cancel" :disable="isStreaming" v-close-popup />
       <q-space />
       <q-btn
         v-if="!streamContent && !formattedReasoningContent"

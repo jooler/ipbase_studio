@@ -24,6 +24,7 @@ self.onmessage = function (e) {
       requestQueue.push({
         id: data.id,
         keywords: data.keywords,
+        page: data.page,
         retries: 0,
       })
 
@@ -83,7 +84,7 @@ async function processQueue() {
       })
     } else {
       // 默认获取视频
-      result = await fetchVideosFromPexels(request.keywords)
+      result = await fetchVideosFromPexels(request.keywords, request.page)
       // 发送视频结果
       self.postMessage({
         action: 'VIDEOS_RESULT',
@@ -130,7 +131,7 @@ async function processQueue() {
  * @param {string} keywords - 搜索关键词
  * @returns {Promise<Array>} - 视频数组
  */
-async function fetchVideosFromPexels(keywords) {
+async function fetchVideosFromPexels(keywords, page = 1) {
   // 处理关键词：替换多余空格，去除特殊字符
   const processedKeywords = keywords
     .trim()
@@ -140,8 +141,7 @@ async function fetchVideosFromPexels(keywords) {
   const params = new URLSearchParams({
     query: processedKeywords,
     per_page: 20,
-    orientation: 'landscape',
-    size: 'medium', // 使用中等大小视频以提高加载速度
+    page: page,
   })
 
   const response = await fetch(`${PEXELS_VIDEOS_API_URL}search?${params.toString()}`, {

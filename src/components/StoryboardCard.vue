@@ -62,7 +62,7 @@ const getImageUrl = (image) => {
 
 <style scoped>
 .storyboard-card {
-  width: 210px;
+  width: 160px;
   max-width: 100%;
   transition: all 0.3s;
 }
@@ -74,7 +74,7 @@ const getImageUrl = (image) => {
 .media-preview-container {
   position: relative;
   width: 100%;
-  height: 120px;
+  height: 90px;
   overflow: hidden;
 }
 

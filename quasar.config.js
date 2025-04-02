@@ -313,12 +313,12 @@ export default defineConfig((ctx) => {
         linux: {
           target: [
             // 'AppImage',
-            // 'rpm',
+            'rpm',
             // 'deb',
-            {
-              target: 'flatpak',
-              arch: ['x64'],
-            },
+            // {
+            //   target: 'flatpak',
+            //   arch: ['x64'],
+            // },
           ],
           category: 'Development',
           maintainer: 'auxcc <jerr@foxmail.com>',

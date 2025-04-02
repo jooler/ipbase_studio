@@ -14,7 +14,7 @@
           class="font-small q-ml-sm unselected"
           :class="$q.platform.is.electron ? 'q-electron-drag' : ''"
           >{{ appStore.app?.name }}</span
-        >{{!!covertedBlob}}
+        >
         <div
           class="q-space full-height"
           :class="$q.platform.is.electron ? 'q-electron-drag' : ''"
@@ -182,17 +182,17 @@ onMounted(async () => {
   right: 0;
   height: 4px; /* 稍微增加高度，便于操作 */
   cursor: ns-resize;
-  background-color: transparent;
+  background-color: #112b39;
   transition: background-color 0.3s;
   z-index: 10;
 }
 
 .footer-resize-handle:hover {
-  background-color: rgba(0, 0, 0, 0.15);
+  background-color: rgb(0, 33, 76);
 }
 
 /* 拖拽时的样式 */
 .footer-resize-handle:active {
-  background-color: rgba(0, 0, 0, 0.2);
+  background-color: rgb(0, 33, 76);
 }
 </style>
