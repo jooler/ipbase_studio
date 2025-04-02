@@ -43,8 +43,12 @@
             <div
               class="segment-progress"
               :style="{
-                width: getSegmentProgress(index),
-                maxWidth: '100%',
+                width:
+                  getSegmentProgress(index) === '100%' || getSegmentProgress(index) === '0%'
+                    ? 0
+                    : '2px',
+                left: getSegmentProgress(index),
+                backgroundColor: 'yellow',
               }"
             ></div>
           </div>
