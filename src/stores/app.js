@@ -35,6 +35,13 @@ export const useAppStore = defineStore('app', {
         position: 'top',
       })
     },
+    showSuccess(success) {
+      Notify.create({
+        message: success,
+        color: 'positive',
+        position: 'top',
+      })
+    },
     async restoreSettings() {
       this.settings.azureTtsKey = await localforage.getItem('azureTtsKey')
       this.settings.azureTtsRegion =

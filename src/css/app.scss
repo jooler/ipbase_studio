@@ -153,9 +153,17 @@ input:-internal-autofill-selected {
 .bg-black {
   background-color: black;
 }
+.art-bottom {
+  transform: translateY(2px);
+}
 .art-bottom,
 .art-mask {
   display: flex !important;
+}
+
+.hidden-controls .art-mask,
+.hidden-controls .art-bottom {
+  display: none !important;
 }
 .blur-xs {
   -webkit-backdrop-filter: blur(5px);
@@ -177,10 +185,10 @@ input:-internal-autofill-selected {
   -webkit-backdrop-filter: blur(50px);
   backdrop-filter: blur(50px);
 }
-.q-carousel .art-bottom,
-.q-carousel .art-mask {
-  display: none !important;
-}
+// .q-carousel .art-bottom,
+// .q-carousel .art-mask {
+//   display: none !important;
+// }
 .z-unfab {
   z-index: -99;
 }

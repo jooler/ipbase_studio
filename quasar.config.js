@@ -3,6 +3,7 @@
 
 import { defineConfig } from '#q-app/wrappers'
 import { fileURLToPath } from 'node:url'
+import path from 'path'
 // import { VueMcp } from 'vite-plugin-vue-mcp'
 // import { loadEnv } from 'vite'
 
@@ -106,6 +107,12 @@ export default defineConfig((ctx) => {
         //   },
         // ],
       ],
+      // vitePluginOptions: {
+      //   // Ensures SharedArrayBuffer works in production build
+      //   optimizeDeps: {
+      //     include: ['@ffmpeg/ffmpeg', '@ffmpeg/util'],
+      //   },
+      // },
     },
 
     // Full list of options: https://v2.quasar.dev/quasar-cli-vite/quasar-config-file#devserver
@@ -124,6 +131,18 @@ export default defineConfig((ctx) => {
       // key: fs.readFileSync('/Volumes/StoragePool/www/server.key'),
       // cert: fs.readFileSync('/Volumes/StoragePool/www/server.crt'),
       // ca: fs.readFileSync('/Volumes/StoragePool/www/ca.crt'),
+
+      headers: {
+        // 'Cross-Origin-Opener-Policy': 'same-origin',
+        // 'Cross-Origin-Embedder-Policy': 'require-corp',
+      },
+      // Vite specific config for SharedArrayBuffer (optional but recommended)
+      // vitePluginOptions: {
+      //   // Ensures SharedArrayBuffer works in dev mode
+      //   optimizeDeps: {
+      //     include: ['@ffmpeg/ffmpeg', '@ffmpeg/util'],
+      //   },
+      // },
     },
 
     // https://v2.quasar.dev/quasar-cli-vite/quasar-config-file#framework
@@ -249,7 +268,7 @@ export default defineConfig((ctx) => {
       builder: {
         // https://www.electron.build/configuration/configuration
         appId: 'com.ipbase.studio',
-        productName: 'IPBase Studio',
+        productName: 'ipbase_studio',
         copyright: 'Copyright © 2024 IPBase',
         asar: true,
         protocols: {
@@ -290,20 +309,22 @@ export default defineConfig((ctx) => {
           icon: fileURLToPath(new URL('./src-electron/icons/icon.ico', import.meta.url)),
           requestedExecutionLevel: 'requireAdministrator',
         },
+
         linux: {
           target: [
             // 'AppImage',
-            'rpm',
+            // 'rpm',
             // 'deb',
-            // {
-            //   target: 'flatpak',
-            //   arch: ['x64'],
-            // },
+            {
+              target: 'flatpak',
+              arch: ['x64'],
+            },
           ],
           category: 'Development',
           maintainer: 'auxcc <jerr@foxmail.com>',
           vendor: 'IPBase',
           synopsis: 'IPBase Desktop Application',
+          extraResources: ['--input-charset=UTF8'],
         },
         flatpak: {
           base: 'org.electronjs.Electron2.BaseApp',
@@ -319,13 +340,6 @@ export default defineConfig((ctx) => {
             '--device=dri',
           ],
         },
-        files: [
-          '!node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}',
-          '!node_modules/*/{test,__tests__,tests,powered-test,example,examples}',
-          '!node_modules/*.d.ts',
-          '!node_modules/.bin',
-          '!**/*.{iml,o,hprof,orig,pyc,pyo,rbc,swp,csproj,sln,xproj}',
-        ],
       },
     },
 
@@ -343,6 +357,19 @@ export default defineConfig((ctx) => {
        * @example [ 'my-script.ts', 'sub-folder/my-other-script.js' ]
        */
       extraScripts: [],
+    },
+
+    vite: {
+      worker: {
+        format: 'es', // 使用 ES 模块格式
+        plugins: [], // 如果需要在 worker 中使用其他插件
+      },
+      plugins: [],
+      resolve: {
+        alias: {
+          '@': path.join(__dirname, './src'),
+        },
+      },
     },
   }
 })

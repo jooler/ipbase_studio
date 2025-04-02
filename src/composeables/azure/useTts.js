@@ -4,6 +4,7 @@ import localeMappings from '../../localeMappings.js'
 import localforage from 'localforage'
 import { api } from 'src/boot/axios'
 import { appStore } from 'src/stores/stores'
+import { uid } from 'quasar'
 
 const azureTtsKey = computed(() => appStore.settings?.azureTtsKey)
 const azureTtsRegion = computed(() => appStore.settings?.azureTtsRegion)
@@ -24,8 +25,13 @@ export function useTts() {
   const textToConvert = ref('')
   const ssmlContent = ref('')
   const jsonContent = ref(void 0) // Store editor's JSON content
+  const textContent = ref(void 0)
   const isConverting = ref(false)
-  const currentFile = ref(null)
+  const currentFile = ref({
+    id: uid(),
+    name: '未命名',
+    content: null,
+  })
 
   // Configuration
   const selectedLocale = ref('')
@@ -530,7 +536,7 @@ export function useTts() {
       } else {
         console.warn('No voice selected, using default from SSML')
       }
-      if (covertedAudio.value[currentFile.value.id]) {
+      if (currentFile.value && covertedAudio.value && covertedAudio.value[currentFile.value.id]) {
         delete covertedAudio.value[currentFile.value.id]
       }
 
@@ -678,11 +684,11 @@ export function useTts() {
     selectedVoice.value = val
   }
   const canConvert = computed(() => selectedLocale.value && selectedVoice.value)
+  const mode = ref('fileSystem')
+  const covertedBlob = ref()
+  const studioAttrs = ref()
 
   // 创建实例
-  const mode = ref('fileSystem')
-  const covertedBlob = ref();
-  const studioAttrs = ref()
   ttsInstance = {
     mode,
     canConvert,
@@ -690,6 +696,7 @@ export function useTts() {
     textToConvert,
     ssmlContent,
     jsonContent,
+    textContent,
     currentFile,
     isConverting,
     covertedAudio,

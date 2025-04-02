@@ -6,11 +6,25 @@
           class="border-bottom"
           :class="$q.dark.mode ? 'bg-grey-10 text-grey-1' : 'bg-white text-grey-10'"
         >
-          <q-btn dense flat icon="mdi-file-tree" class="q-mr-md" @click="toggleLeftDrawer" />
+          <q-btn
+            v-if="studioStore.runMode === 'tts'"
+            dense
+            flat
+            icon="mdi-file-tree"
+            class="q-mr-md"
+            @click="toggleLeftDrawer"
+          />
           <slot name="headerLeft"></slot>
           <q-space />
           <slot name="headerRight"></slot>
-          <q-btn dense flat icon="mdi-tune" class="q-ml-md" @click="toggleRightDrawer" />
+          <q-btn
+            v-if="studioStore.runMode === 'tts'"
+            dense
+            flat
+            icon="mdi-tune"
+            class="q-ml-md"
+            @click="toggleRightDrawer"
+          />
         </q-toolbar>
       </q-header>
 
@@ -56,15 +70,23 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, onBeforeMount } from 'vue'
 import { useDraggable } from '@vueuse/core'
-
+import { studioStore } from 'src/stores/stores'
 // 本地存储键
 const STORAGE_KEY = 'app_drawer_settings'
 
 const myTweak = (offset, height) => {
   return { minHeight: offset && height ? `calc(${height - offset - 1}px)` : '100%' }
 }
+
+onBeforeMount(() => {
+  console.log('onBeforeMount')
+  if (studioStore.runMode === 'storyboard') {
+    rightDrawerOpen.value = false
+    leftDrawerOpen.value = false
+  }
+})
 
 // 从localStorage获取抽屉设置或使用默认值
 const loadDrawerSettings = () => {

@@ -1,7 +1,7 @@
 <template>
   <MainContainer>
     <template #headerLeft>
-      <template v-if="currentFile">
+      <template v-if="currentFile && studioStore.runMode === 'tts'">
         <q-chip
           v-if="selectedVoice?.LocalName"
           icon="settings_voice"
@@ -24,7 +24,16 @@
         </q-btn>
       </template>
     </template>
-    <template #headerRight>
+    <template v-if="studioStore.runMode === 'tts'" #headerRight>
+      <q-btn
+        color="primary"
+        flat
+        dense
+        padding="xs md"
+        class="q-mr-sm"
+        label="生成配音稿"
+        @click="showAgentDialog = true"
+      />
       <q-chip
         v-if="!canConvert"
         square
@@ -48,8 +57,11 @@
           <q-spinner-dots color="white" size="1em" />
         </template>
       </q-btn>
+      <q-dialog v-model="showAgentDialog" persistent>
+        <AgentInput @accept="handleAgentAccept" />
+      </q-dialog>
     </template>
-    <template #leftDrawerContent>
+    <template v-if="studioStore.runMode === 'tts'" #leftDrawerContent>
       <div class="column fit">
         <q-toolbar class="transparent border-bottom q-pa-xs q-pr-md">
           <q-tabs
@@ -92,7 +104,7 @@
       </div>
     </template>
     <template #mainContent>
-      <q-scroll-area class="absolute-full column">
+      <q-scroll-area v-if="studioStore.runMode === 'tts'" class="absolute-full column">
         <tiptap-ssml
           :key="currentFile?.id"
           @saveContent="saveCurrentFile"
@@ -100,8 +112,9 @@
           class="q-space"
         />
       </q-scroll-area>
+      <MainMedia v-if="studioStore.runMode === 'storyboard'" :key="selectedCard?.id" />
     </template>
-    <template #rightDrawerContent>
+    <template v-if="studioStore.runMode === 'tts'" #rightDrawerContent>
       <div class="config-container q-pa-md">
         <q-select
           v-model="selectedLocale"
@@ -251,7 +264,7 @@
         </div>
       </div>
     </template>
-    <template #footer>
+    <template v-if="studioStore.runMode === 'tts'" #footer>
       <div
         v-if="currentFile && covertedAudio[currentFile.id]"
         :key="currentFile.id"
@@ -279,7 +292,7 @@
               icon="file_download"
               label="进入创作"
               :color="$q.dark.mode ? 'grey-1' : 'grey-8'"
-              @click="enterStudio(covertedAudio[currentFile.id])"
+              @click="enterStudio"
             />
           </template>
         </WaveSurfer>
@@ -320,6 +333,7 @@ import MainContainer from './MainContainer.vue'
 import { onMounted, watch, nextTick, ref, onBeforeMount, computed, markRaw } from 'vue'
 import WaveSurfer from 'src/components/WaveSurfer.vue'
 import TiptapSsml from 'src/components/TiptapSsml.vue'
+import MainMedia from 'src/components/MainMedia.vue'
 import { useTts } from '../composeables/azure/useTts'
 import ProjectManager from 'src/components/ProjectManager.vue'
 import FileManager from 'src/components/FileManager.vue'
@@ -329,11 +343,17 @@ import AudioWave from 'src/components/AudioWave.vue'
 import { useQuasar } from 'quasar'
 import { appStore } from 'src/stores/stores'
 import localforage from 'localforage'
+import AgentInput from 'src/components/AgentInput.vue'
+import { useStudio } from 'src/composeables/useStudio'
+import { studioStore } from 'src/stores/stores'
+
+const { selectedCard } = useStudio()
 
 const limit = computed(() => (appStore.settings?.azureTtsKey ? '100000' : '10000'))
 
 const $q = useQuasar()
 const isElectronEnv = computed(() => $q.platform.is.electron)
+const showAgentDialog = ref(false)
 
 // 动态加载ElectronFileManager组件
 const ElectronFileManager = markRaw({
@@ -372,11 +392,11 @@ const {
   canConvert,
   ssmlContent,
   jsonContent,
+  textContent,
   currentFile,
   isConverting,
   covertedAudio,
   covertedBlob,
-  studioAttrs,
   selectedLocale,
   selectedVoice,
   voiceOptions,
@@ -400,9 +420,27 @@ const {
   restoreConfig,
   reLocalName,
   setVoice,
+  studioAttrs,
 } = useTts()
 
-const convertDisabled = computed(() => !canConvert.value || !ssmlContent.value || !hasContent.value)
+const convertDisabled = computed(() => {
+  // 如果内容来自AI生成，内容一定不为空
+  if (
+    jsonContent.value &&
+    jsonContent.value.content &&
+    jsonContent.value.content.length > 0 &&
+    jsonContent.value.content.some(
+      (para) =>
+        para.content &&
+        para.content.length > 0 &&
+        para.content.some((node) => node.text && node.text.trim()),
+    )
+  ) {
+    return !canConvert.value || !ssmlContent.value
+  }
+  // 原来的逻辑
+  return !canConvert.value || !ssmlContent.value || !hasContent.value
+})
 
 const updateMode = () => {
   localStorage.setItem('mode', mode.value)
@@ -423,6 +461,90 @@ onBeforeMount(() => {
   // 从localStorage中获取上次保存的模式，如果没有则默认使用'fileSystem'
   mode.value = localStorage.getItem('mode') || 'fileSystem'
 })
+
+const handleAgentAccept = async (content) => {
+  console.log('handleAgentAccept', content)
+  textContent.value = content
+
+  // 先设置空的Tiptap内容，触发一次内容更新事件
+  jsonContent.value = {
+    type: 'doc',
+    content: [
+      {
+        type: 'paragraph',
+        content: [],
+      },
+    ],
+  }
+
+  // 等待DOM更新完成
+  await nextTick()
+
+  // 按照句号、问号、感叹号等标点符号分割文本成句子
+  // 使用正则表达式分割，保留分隔符
+  const sentences = content.split(/([。！？.!?\n]+)/)
+
+  // 将分割后的句子组合成完整的句子（包括标点符号）
+  const completeSentences = []
+  for (let i = 0; i < sentences.length; i += 2) {
+    const sentence = sentences[i]
+    const punctuation = sentences[i + 1] || ''
+    if (sentence.trim()) {
+      completeSentences.push(sentence + punctuation)
+    }
+  }
+
+  // 为每个句子创建段落节点
+  const paragraphs = completeSentences.map((sentence) => ({
+    type: 'paragraph',
+    content: [
+      {
+        type: 'text',
+        text: sentence.trim(),
+      },
+    ],
+  }))
+
+  // 如果没有段落（内容为空），则创建一个空段落
+  if (paragraphs.length === 0) {
+    paragraphs.push({
+      type: 'paragraph',
+      content: [],
+    })
+  }
+
+  // 使用setTimeout确保在新的事件循环中设置实际内容
+  setTimeout(() => {
+    // 设置实际的JSON内容
+    jsonContent.value = {
+      type: 'doc',
+      content: paragraphs,
+    }
+
+    // 强制更新hasContent状态为true，因为我们知道有内容
+    hasContent.value = true
+
+    // 关闭对话框
+    showAgentDialog.value = false
+
+    // 添加第二次检查，确保按钮状态更新
+    setTimeout(() => {
+      // 再次确认内容状态
+      hasContent.value = true
+
+      // 检查ssmlContent，如果为空但jsonContent有内容，尝试触发一次更新
+      if (
+        !ssmlContent.value &&
+        jsonContent.value &&
+        jsonContent.value.content &&
+        jsonContent.value.content.length > 0
+      ) {
+        // 保存当前内容以触发SSML更新
+        saveCurrentFile(jsonContent.value)
+      }
+    }, 100)
+  }, 10)
+}
 
 const hasContent = ref(false)
 const isEmptyString = (isEmpty) => {
@@ -653,6 +775,9 @@ onMounted(async () => {
   await initVoices()
   await restoreConfig()
 
+  // 加载保存的Studio数据
+  await loadStudioData()
+
   // 如果没有恢复的配置，则设置默认值
   if (!selectedRateValue.value) {
     selectedRateValue.value = 100
@@ -723,11 +848,76 @@ const exportCurrentFile = async () => {
 }
 
 const enterStudio = async () => {
-  studioAttrs.value = {
-    file: currentFile.value,
-    blob: covertedBlob.vue
+  // 创建可序列化的对象，包含文件信息
+  const serializableData = {
+    file: currentFile.value
+      ? {
+          id: currentFile.value.id,
+          name: currentFile.value.name,
+          jsonContent: jsonContent.value,
+          textContent: textContent.value,
+        }
+      : null,
+    // 不再使用URL，直接存储blob对象
+    hasBlob: !!covertedBlob.value,
   }
-  await localforage.setItem('studioAttrs', studioAttrs.value)
+
+  try {
+    studioAttrs.value = serializableData
+    // 保存文件信息
+    await localforage.setItem('studioAttrs', JSON.parse(JSON.stringify(serializableData)))
+
+    // 如果有音频Blob，单独保存
+    if (covertedBlob.value) {
+      // Blob对象可以直接保存到IndexedDB
+      await localforage.setItem('studioAudioBlob', covertedBlob.value)
+      console.log('音频数据已保存到IndexedDB')
+    }
+
+    console.log('Studio数据保存成功')
+    appStore.showSuccess('数据已保存，可以在刷新后继续使用')
+    studioStore.setRunMode('storyboard')
+
+    // 可以添加跳转到Studio页面的逻辑
+  } catch (error) {
+    console.error('保存Studio数据失败:', error)
+    appStore.showError('无法保存音频数据: ' + error.message)
+  }
+}
+
+// 从IndexedDB加载Studio数据（在组件挂载时调用）
+const loadStudioData = async () => {
+  try {
+    // 加载基本信息
+    const savedData = await localforage.getItem('studioAttrs')
+    if (savedData) {
+      console.log('找到保存的Studio数据')
+
+      // 如果有文件信息，可以在这里处理
+      if (savedData.file) {
+        // 可以选择性地恢复文件信息
+        console.log('找到保存的文件信息:', savedData.file.name)
+        currentFile.value = savedData.file
+        jsonContent.value = savedData.file.jsonContent
+        textContent.value = savedData.file.textContent
+      }
+
+      studioAttrs.value = savedData
+
+      // 如果有音频Blob标记，尝试加载
+      if (savedData.hasBlob) {
+        const audioBlob = await localforage.getItem('studioAudioBlob')
+        if (audioBlob) {
+          covertedBlob.value = audioBlob
+          covertedAudio.value[currentFile.value.id] = audioBlob
+        }
+      }
+
+      studioStore.setRunMode('storyboard')
+    }
+  } catch (error) {
+    console.error('加载Studio数据失败:', error)
+  }
 }
 </script>
 

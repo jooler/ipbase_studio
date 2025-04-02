@@ -83,7 +83,7 @@
             <q-tooltip>音量</q-tooltip>
           </q-btn>
         </template>
-        <q-list v-if="!hasTextSelection" dense class="column gap-xs">
+        <q-list v-if="!hasTextSelection" dense class="column gap-xs q-space">
           <q-item
             clickable
             class="radius-xs"
@@ -136,7 +136,7 @@
             <q-item-section class="text-negative">删除停顿</q-item-section>
           </q-item>
         </q-list>
-        <q-space />
+        <q-space v-if="hasTextSelection" />
         <q-btn
           v-if="hasTextSelection"
           color="negative"
