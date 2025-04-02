@@ -139,7 +139,7 @@ async function fetchVideosFromPexels(keywords) {
 
   const params = new URLSearchParams({
     query: processedKeywords,
-    per_page: 5,
+    per_page: 20,
     orientation: 'landscape',
     size: 'medium', // 使用中等大小视频以提高加载速度
   })

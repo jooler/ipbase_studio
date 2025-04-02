@@ -565,6 +565,7 @@ export function useTts() {
 
         covertedBlob.value = audioBlob
         covertedAudio.value[currentFile.value.id] = URL.createObjectURL(audioBlob)
+        await localforage.setItem('covertedBlob', audioBlob)
       } else {
         const res = await api.post('/tts/convert', {
           data: {
@@ -630,6 +631,7 @@ export function useTts() {
   // 从 localforage 恢复配置
   async function restoreConfig() {
     try {
+      jsonContent.value = await localforage.getItem('jsonContent')
       const config = await localforage.getItem(VOICE_CONFIG_KEY)
       if (config) {
         // 恢复语言

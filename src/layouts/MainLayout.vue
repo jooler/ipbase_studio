@@ -14,7 +14,7 @@
           class="font-small q-ml-sm unselected"
           :class="$q.platform.is.electron ? 'q-electron-drag' : ''"
           >{{ appStore.app?.name }}</span
-        >
+        >{{!!covertedBlob}}
         <div
           class="q-space full-height"
           :class="$q.platform.is.electron ? 'q-electron-drag' : ''"
@@ -47,7 +47,7 @@
     </q-page-container>
 
     <q-footer
-      v-if="studioAttrs && covertedBlob"
+      v-if="studioStore.studioAttrs && covertedBlob"
       :style="{ height: `${footerHeight}px` }"
       :class="$q.dark.mode ? 'bg-grey-10' : 'bg-grey-1'"
     >
@@ -66,7 +66,7 @@
 import { onMounted, ref, watch, onUnmounted } from 'vue'
 import AppNavigation from '../components/AppNavigation.vue'
 import AppControl from '../components/AppControl.vue'
-import { appStore } from 'src/stores/stores'
+import { appStore, studioStore } from 'src/stores/stores'
 import MainIcon from '../components/MainIcon.vue'
 import AppSettings from 'src/components/AppSettings.vue'
 import TimeLine from 'components/TimeLine.vue'
@@ -85,7 +85,7 @@ const loadFooterSettings = () => {
   return 350 // 默认高度
 }
 
-const { studioAttrs, covertedBlob } = useTts()
+const { covertedBlob } = useTts()
 const leftDrawerOpen = ref(true)
 const rightDrawerOpen = ref(false)
 const footerHeight = ref(loadFooterSettings())

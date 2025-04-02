@@ -4,6 +4,7 @@ import { defineStore, acceptHMRUpdate } from 'pinia'
 
 export const useStudioStore = defineStore('studio', {
   state: () => ({
+    studioAttrs: void 0,
     storyboardCards: [],
     selectedCard: null,
     runMode: 'tts', // tts, storyboard

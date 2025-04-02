@@ -61,5 +61,34 @@ export const useMedia = () => {
       }, 30000) // 10秒超时
     })
   }
-  return { getVideoDuration }
+
+  // 缓存视频并获取时长
+  const cacheVideo = async (url) => {
+    try {
+      const duration = await getVideoDuration(url)
+      return {
+        success: true,
+        duration,
+      }
+    } catch (error) {
+      console.error('缓存视频失败:', error)
+      return {
+        success: false,
+        url: url,
+        duration: 30,
+      }
+    }
+  }
+  // 从视频文件列表中获取最小分辨率的视频
+  const getMinResolutionVideo = (videoFiles) => {
+    if (!videoFiles || videoFiles.length === 0) return null
+    // return videoFiles[0]x c
+
+    return videoFiles.reduce((min, current) => {
+      const currentWidth = parseInt(current.width) || Infinity
+      const minWidth = parseInt(min.width) || Infinity
+      return currentWidth < minWidth ? current : min
+    })
+  }
+  return { getVideoDuration, cacheVideo, getMinResolutionVideo }
 }
