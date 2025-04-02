@@ -68,7 +68,7 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['ready', 'play', 'pause', 'ended', 'qualityChange'])
+const emit = defineEmits(['ready', 'play', 'pause', 'ended', 'qualityChange', 'waiting'])
 
 const artPlayerRef = ref(null)
 let artPlayer = null
@@ -138,6 +138,9 @@ const initArtPlayer = () => {
         emit('ended')
       })
     }
+  })
+  artPlayer.on('video:waiting', () => {
+    emit('waiting')
   })
 
   artPlayer.on('play', () => {
