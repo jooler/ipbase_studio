@@ -50,14 +50,16 @@
       v-if="studioStore.studioAttrs && covertedBlob"
       :style="{ height: `${footerHeight}px` }"
       :class="$q.dark.mode ? 'bg-grey-10' : 'bg-grey-1'"
+      class="column no-wrap"
     >
       <div
         ref="footerResizeHandle"
-        class="footer-resize-handle bg-dark shadow-edge"
-        :class="$q.dark.mode ? 'bg-dark' : 'bg-grey-3'"
+        class="footer-resize-handle shadow-edge"
         @mousedown="handleResizeStart"
       ></div>
-      <TimeLine />
+      <div class="q-space">
+        <TimeLine />
+      </div>
     </q-footer>
   </q-layout>
 </template>
@@ -176,23 +178,10 @@ onMounted(async () => {
 }
 
 .footer-resize-handle {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
   height: 4px; /* 稍微增加高度，便于操作 */
   cursor: ns-resize;
-  background-color: #112b39;
+  background-color: #171e2b;
   transition: background-color 0.3s;
   z-index: 10;
-}
-
-.footer-resize-handle:hover {
-  background-color: rgb(0, 33, 76);
-}
-
-/* 拖拽时的样式 */
-.footer-resize-handle:active {
-  background-color: rgb(0, 33, 76);
 }
 </style>

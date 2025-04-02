@@ -20,7 +20,7 @@
       <span>大模型正在输出，请耐心等待...</span>
     </q-inner-loading>
     <template v-else>
-      <q-scroll-area class="full-width bg-darker q-mt-xs" style="flex: 0 0 94px">
+      <q-scroll-area class="full-width bg-darker" style="flex: 0 0 94px">
         <div class="column">
           <!-- 分镜卡片区域 -->
           <div class="row items-start no-wrap overflow-auto">
@@ -72,6 +72,7 @@ import TimelineControls from './TimelineControls.vue'
 import StoryboardCard from './StoryboardCard.vue'
 import CardDetail from './CardDetail.vue'
 import { studioStore } from 'src/stores/stores'
+import localforage from 'localforage'
 
 const $q = useQuasar()
 const isGenerating = ref(false)
@@ -89,7 +90,7 @@ const initWorker = () => {
       pexelsWorker = new Worker(new URL('../workers/pexelsWorker.js', import.meta.url))
 
       // 处理从Worker返回的消息
-      pexelsWorker.onmessage = (e) => {
+      pexelsWorker.onmessage = async (e) => {
         const { action, data } = e.data
 
         if (action === 'VIDEOS_RESULT') {
@@ -116,7 +117,10 @@ const initWorker = () => {
             }
 
             // 保存更新后的数据
-            localStorage.setItem('saved_storyboard', JSON.stringify(studioStore.storyboardCards))
+            await localforage.setItem(
+              'saved_storyboard',
+              JSON.stringify(studioStore.storyboardCards),
+            )
           }
 
           // 检查是否所有视频都已加载完成
@@ -148,7 +152,10 @@ const initWorker = () => {
             }
 
             // 保存更新后的数据
-            localStorage.setItem('saved_storyboard', JSON.stringify(studioStore.storyboardCards))
+            await localforage.setItem(
+              'saved_storyboard',
+              JSON.stringify(studioStore.storyboardCards),
+            )
           }
 
           // 检查是否所有图片都已加载完成
@@ -241,11 +248,11 @@ const extractTextFromTiptapJson = (json) => {
   return text.trim()
 }
 // 更新卡片
-const updateCard = (index, _updatedCard) => {
+const updateCard = async (index, _updatedCard) => {
   if (index >= 0 && index < studioStore.storyboardCards.length) {
     studioStore.storyboardCards[index] = _updatedCard
     // 保存更新到localStorage
-    localStorage.setItem('saved_storyboard', JSON.stringify(studioStore.storyboardCards))
+    await localforage.setItem('saved_storyboard', JSON.stringify(studioStore.storyboardCards))
   }
 }
 
@@ -434,7 +441,7 @@ const generateStoryboard = async () => {
     const prompt = `请为以下文案内容生成分镜头脚本：\n\n${textContent.value}`
 
     // 使用流式API
-    const result = await generateContentStream(prompt, ({ content }) => {
+    const result = await generateContentStream(prompt, async ({ content }) => {
       // 流式内容回调
       if (!content) return
 
@@ -475,7 +482,7 @@ const generateStoryboard = async () => {
         // 检查提取的JSON数据
         if (jsonData && jsonData.storyboard && Array.isArray(jsonData.storyboard)) {
           studioStore.setStoryboardCards(processStoryboardCards(jsonData.storyboard))
-          localStorage.setItem('saved_storyboard', JSON.stringify(studioStore.storyboardCards))
+          await localforage.setItem('saved_storyboard', JSON.stringify(studioStore.storyboardCards))
         }
         // 处理嵌套结构 {"content": {"storyboard": [...]}}
         else if (
@@ -485,7 +492,7 @@ const generateStoryboard = async () => {
           Array.isArray(jsonData.content.storyboard)
         ) {
           studioStore.setStoryboardCards(processStoryboardCards(jsonData.content.storyboard))
-          localStorage.setItem('saved_storyboard', JSON.stringify(studioStore.storyboardCards))
+          await localforage.setItem('saved_storyboard', JSON.stringify(studioStore.storyboardCards))
         }
       } catch {
         // 解析错误，可能是JSON不完整
@@ -519,7 +526,7 @@ const generateStoryboard = async () => {
         if (jsonData && jsonData.storyboard && Array.isArray(jsonData.storyboard)) {
           studioStore.setStoryboardCards(processStoryboardCards(jsonData.storyboard))
           // 保存到localStorage
-          localStorage.setItem('saved_storyboard', JSON.stringify(studioStore.storyboardCards))
+          await localforage.setItem('saved_storyboard', JSON.stringify(studioStore.storyboardCards))
 
           $q.notify({
             type: 'positive',
@@ -539,7 +546,10 @@ const generateStoryboard = async () => {
           ) {
             studioStore.setStoryboardCards(processStoryboardCards(jsonData.content.storyboard))
             // 保存到localStorage
-            localStorage.setItem('saved_storyboard', JSON.stringify(studioStore.storyboardCards))
+            await localforage.setItem(
+              'saved_storyboard',
+              JSON.stringify(studioStore.storyboardCards),
+            )
 
             $q.notify({
               type: 'positive',
@@ -582,7 +592,7 @@ onMounted(async () => {
   initWorker()
 
   try {
-    const savedStoryboard = localStorage.getItem('saved_storyboard')
+    const savedStoryboard = await localforage.getItem('saved_storyboard')
     if (savedStoryboard) {
       studioStore.setStoryboardCards(JSON.parse(savedStoryboard))
 

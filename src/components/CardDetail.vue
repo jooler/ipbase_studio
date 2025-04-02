@@ -80,7 +80,7 @@
   <div v-else class="flex flex-center full-height">
     <div class="text-center">
       <q-icon name="info" size="3rem" color="grey-5" />
-      <p class="text-grey-7 q-mt-sm">请选择一个分镜卡片查看详情</p>
+      <p class="text-grey-7 q-mt-sm">请选择一个镜头查看详情</p>
     </div>
   </div>
 </template>
@@ -89,6 +89,7 @@
 import { ref, watch, onMounted } from 'vue'
 import { studioStore } from '../stores/stores'
 import { useQuasar } from 'quasar'
+import localforage from 'localforage'
 
 const $q = useQuasar()
 
@@ -150,7 +151,7 @@ const initWorker = () => {
       pexelsWorker = new Worker(new URL('../workers/pexelsWorker.js', import.meta.url))
 
       // 处理从Worker返回的消息
-      pexelsWorker.onmessage = (e) => {
+      pexelsWorker.onmessage = async (e) => {
         const { action, data } = e.data
 
         if (action === 'VIDEOS_RESULT') {
@@ -175,8 +176,11 @@ const initWorker = () => {
               }
             }
 
-            // 保存到 localStorage
-            localStorage.setItem('saved_storyboard', JSON.stringify(studioStore.storyboardCards))
+            // 保存到 localforage
+            await localforage.setItem(
+              'saved_storyboard',
+              JSON.stringify(studioStore.storyboardCards),
+            )
           }
         }
       }

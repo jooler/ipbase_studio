@@ -11,7 +11,7 @@
     class="shadow-0 transparent"
   >
     <template v-slot:body="props">
-      <q-tr :props="props" :class="activeItem.id === props.row.id ? 'bg-primary text-white' : ''">
+      <q-tr :props="props" :class="activeItem?.id === props.row.id ? 'bg-primary text-white' : ''">
         <q-td
           key="thumbnial"
           :props="props"
