@@ -21,7 +21,8 @@
           <q-spinner-dots color="white" size="1em" />
         </template>
       </q-btn>
-      <q-dialog v-model="showAgentDialog" persistent>
+      <q-dialog v-model="showAgentDialog" persistent @show="appStore.disableWaveSurferShortcut = true"
+        @hide="appStore.disableWaveSurferShortcut = false">
         <AgentInput @accept="handleAgentAccept" />
       </q-dialog>
     </template>
@@ -690,6 +691,7 @@
   })
 
   const restoreCache = async () => {
+    await nextTick()
     jsonContent.value = await localforage.getItem('jsonContent')
     if (!currentFile.value) {
       currentFile.value = {
@@ -699,7 +701,12 @@
       }
     }
     const covertedBlob = await localforage.getItem('covertedBlob') || await localforage.getItem('studioAudioBlob')
-    if (covertedBlob) covertedAudio.value[currentFile.value.id] = URL.createObjectURL(covertedBlob)
+    if (!covertedAudio.value) {
+      covertedAudio.value = []
+    }
+    if (covertedBlob) {
+      covertedAudio.value[currentFile.value.id] = URL.createObjectURL(covertedBlob)
+    }
   }
 
   // 导出当前文件为新文件
@@ -762,10 +769,10 @@
     }
   }
   const backTTS = async () => {
+    await restoreCache();
+    studioStore.setRunMode('tts')
     studioStore.studioAttrs = void 0
     await localforage.removeItem('studioAttrs')
-    studioStore.setRunMode('tts')
-    await restoreCache();
   }
 
   // 从IndexedDB加载Studio数据（在组件挂载时调用）

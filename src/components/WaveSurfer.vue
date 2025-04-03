@@ -18,6 +18,7 @@
   import { ref, useTemplateRef } from 'vue'
   import { useWaveSurfer } from '@meersagor/wavesurfer-vue'
   import { onKeyStroke } from '@vueuse/core'
+  import { appStore } from 'src/stores/stores'
 
   const { url } = defineProps({
     url: {
@@ -43,15 +44,18 @@
   })
 
   onKeyStroke(' ', (e) => {
+    if (appStore.disableWaveSurferShortcut) return
     e.preventDefault()
     document.activeElement.blur()
     waveSurfer.value?.playPause()
   });
   onKeyStroke('ArrowLeft', (e) => {
+    if (appStore.disableWaveSurferShortcut) return
     e.preventDefault()
     waveSurfer.value.skip(-5);
   })
   onKeyStroke('ArrowRight', (e) => {
+    if (appStore.disableWaveSurferShortcut) return
     e.preventDefault()
     waveSurfer.value.skip(5);
   })

@@ -18,6 +18,7 @@ export const useAppStore = defineStore('app', {
       azureTtsRegion: 'eastasia',
     },
     error: null,
+    disableWaveSurferShortcut: false,
   }),
 
   getters: {
