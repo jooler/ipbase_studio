@@ -248,16 +248,25 @@ watch(
 // Watch jsonContent from useTts for changes
 watch(
   jsonContent,
-  () => {
-    editor.value?.commands.setContent(jsonContent.value)
-    // 使用从 useTiptapHelpers 抽离出来的 watchJsonContent 函数
-    watchJsonContent(jsonContent, editor.value, {
-      // editor.value?.set
-      onIsEmpty: (isEmpty) => emit('isEmptyString', isEmpty),
-      updateSsmlOutput: (ssml) => (ssmlOutput.value = ssml),
-      updateSsmlContent: (ssml) => (ssmlContent.value = ssml),
-      convertToSsml,
-    })
+  (newVal) => {
+    if (editor.value && newVal) {
+      // 先设置编辑器内容
+      editor.value.commands.setContent(newVal)
+
+      // 等待一下确保内容已更新
+      setTimeout(() => {
+        // 显式调用syncSsml转换SSML内容
+        syncSsml(editor.value)
+
+        // 使用从 useTiptapHelpers 抽离出来的 watchJsonContent 函数
+        watchJsonContent(jsonContent, editor.value, {
+          onIsEmpty: (isEmpty) => emit('isEmptyString', isEmpty),
+          updateSsmlOutput: (ssml) => (ssmlOutput.value = ssml),
+          updateSsmlContent: (ssml) => (ssmlContent.value = ssml),
+          convertToSsml,
+        })
+      }, 10)
+    }
   },
   { deep: true },
 )

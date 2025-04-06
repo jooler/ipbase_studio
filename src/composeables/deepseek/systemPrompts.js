@@ -77,6 +77,10 @@ const storyboardPrompt = {
 - 例如："sunset mountains, silhouette, hiking, adventure"或"business meeting, teamwork, office, discussion"
 - 关键词要尽量具体，避免过于抽象或宽泛的词汇
 
+【特别强调】：
+- searchKeywords字段必须包含有效内容。
+- 每个镜头的长度控制在5秒以内，必须根据配音文本的长度来合理划分镜头数量与长度。
+
 请确保输出的JSON格式完全正确，没有语法错误，可以被直接解析。`,
 }
 

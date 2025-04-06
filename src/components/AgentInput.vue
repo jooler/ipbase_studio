@@ -93,7 +93,7 @@
 </template>
 <script setup>
 import { ref, watch, computed } from 'vue'
-import { useDeepseek } from 'src/composeables/deepseek/useDeepseek'
+import { useOpenrouter } from 'src/composeables/openrouter'
 import { useQuasar } from 'quasar'
 import VueMarkdownRender from 'vue-markdown-render'
 
@@ -112,7 +112,7 @@ const {
   isStreaming,
   streamContent,
   streamReasoningContent,
-} = useDeepseek()
+} = useOpenrouter('default', 'deepseek/deepseek-r1:free')
 
 // 计算属性：格式化实时推理内容为Markdown
 const formattedReasoningContent = computed(() => {

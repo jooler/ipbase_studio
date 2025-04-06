@@ -118,7 +118,7 @@ const columns = [
 const rows = computed(() => {
   return storyboardCards.map((i) => ({
     id: i.id,
-    thumbnial: i.selected.image || (i.videos && i.videos.length > 0 ? i.videos[0]?.image : null),
+    thumbnial: i.selected?.image || (i.videos && i.videos.length > 0 ? i.videos[0]?.image : null),
     time: i.time,
     text: i.text,
     description: i.description,
